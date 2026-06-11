@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard IPTV</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCTeDfLL1StMjkQfMQukZQ9OjxMkvxp5IM",
+  authDomain: "dashboard-iptv-55910.firebaseapp.com",
+  projectId: "dashboard-iptv-55910",
+  storageBucket: "dashboard-iptv-55910.firebasestorage.app",
+  messagingSenderId: "277711945389",
+  appId: "1:277711945389:web:90270762b7f1fd5e561024"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+async function fbSave(colecao, dados) {
+  try {
+    await db.collection(colecao).doc("dados").set({ lista: JSON.stringify(dados) });
+    document.getElementById('sync-status').textContent = '✅ Sincronizado';
+  } catch(e) {
+    console.error("Erro Firebase save:", e);
+    document.getElementById('sync-status').textContent = '⚠️ Erro ao salvar';
+  }
+}
+
+async function fbLoad(colecao) {
+  try {
+    const snap = await db.collection(colecao).doc("dados").get();
+    if (snap.exists) return JSON.parse(snap.data().lista);
+  } catch(e) {
+    console.error("Erro Firebase load:", e);
+  }
+  return null;
+}
+window.fbLoad = fbLoad;
+window.fbSave = fbSave;
+</script>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 20px; }
+.container { max-width: 1400px; margin: 0 auto; }
+h1 { font-size: 28px; margin-bottom: 4px; background: linear-gradient(90deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.subtitle { color: #94a3b8; margin-bottom: 20px; font-size: 14px; }
+
+/* TABS */
+.tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+.tab { padding: 10px 22px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s; background: #1e293b; color: #94a3b8; }
+.tab.active { background: linear-gradient(90deg, #3b82f6, #2563eb); color: #fff; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* KPIs */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.kpi { background: #1e293b; border-radius: 12px; padding: 20px; border-left: 4px solid; transition: transform .15s; }
+.kpi:hover { transform: translateY(-2px); }
+.kpi.blue { border-color: #3b82f6; }
+.kpi.red { border-color: #ef4444; }
+.kpi.green { border-color: #10b981; }
+.kpi.yellow { border-color: #f59e0b; }
+.kpi.purple { border-color: #8b5cf6; }
+.kpi-label { font-size: 11px; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; margin-bottom: 8px; }
+.kpi-value { font-size: 30px; font-weight: 700; }
+.kpi-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+/* CHARTS */
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+@media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
+.card { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.card h2 { font-size: 15px; margin-bottom: 16px; color: #cbd5e1; }
+.chart-wrap { position: relative; height: 240px; }
+
+/* INPUTS */
+input[type=text], input[type=number], input[type=date], select, textarea {
+  padding: 9px 12px; background: #0f172a; border: 1px solid #334155;
+  border-radius: 6px; color: #e2e8f0; font-size: 13px;
+}
+input:focus, select:focus { outline: none; border-color: #3b82f6; }
+
+/* BUTTONS */
+.btn { padding: 9px 18px; border: none; border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer; font-size: 13px; }
+.btn:hover { opacity: .88; }
+.btn-green { background: linear-gradient(90deg, #10b981, #059669); }
+.btn-blue { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+.btn-yellow { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.btn-gray { background: #334155; }
+.btn-red { background: #ef4444; padding: 4px 10px; font-size: 11px; }
+.btn-edit { background: #0e7490; padding: 4px 10px; font-size: 11px; }
+/* MODAL */
+.modal-overlay { display:none; position:fixed; inset:0; background:#00000088; z-index:100; align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal { background:#1e293b; border-radius:12px; padding:24px; width:100%; max-width:560px; border-top:3px solid #f59e0b; }
+.modal h3 { font-size:16px; color:#cbd5e1; margin-bottom:16px; }
+.modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.modal-grid input { width:100%; }
+.modal-actions { display:flex; gap:8px; margin-top:14px; }
+.btn-sm { padding: 3px 9px; font-size: 11px; }
+.copy-btn { background: #334155; border: none; border-radius: 4px; color: #94a3b8; padding: 2px 7px; font-size: 11px; cursor: pointer; margin-left: 5px; transition: all .15s; }
+.copy-btn:hover { background: #475569; color: #e2e8f0; }
+.copy-btn.ok { background: #065f46; color: #a7f3d0; }
+
+/* TOOLBAR */
+.toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.toolbar input { flex: 1; min-width: 200px; }
+
+/* TABLE */
+.table-wrap { max-height: 520px; overflow: auto; border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #0f172a; padding: 10px 8px; text-align: left; color: #64748b; font-weight: 600; font-size: 11px; text-transform: uppercase; position: sticky; top: 0; z-index: 1; }
+td { padding: 9px 8px; border-bottom: 1px solid #1e293b40; }
+tr:hover td { background: #0f172a55; }
+
+/* TAGS */
+.tag { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.tag-vencido { background: #7f1d1d; color: #fecaca; }
+.tag-hoje { background: #064e3b; color: #a7f3d0; }
+.tag-semana { background: #78350f; color: #fde68a; }
+.tag-ok { background: #1e3a5f; color: #bfdbfe; }
+
+/* FORM GRIDS */
+.form-row { display: grid; gap: 8px; margin-bottom: 10px; }
+.form-5 { grid-template-columns: 2fr 1fr 1fr 1fr 1fr; }
+.form-5dns { grid-template-columns: 1.5fr 1.2fr 1.5fr 1fr 1fr; }
+.form-actions { display: flex; gap: 8px; }
+
+/* MISC */
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+.muted { color: #475569; font-size: 12px; margin-top: 10px; }
+.obs-warn { color: #f59e0b; font-weight: 600; }
+.form-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.dns-card { border-top: 3px solid #f59e0b; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📊 Dashboard IPTV <span id="sync-status" style="font-size:13px;font-weight:400;color:#94a3b8;-webkit-text-fill-color:#94a3b8">🔄 Conectando...</span></h1>
+  <p class="subtitle">Gestão de clientes — sincronizado na nuvem ☁️</p>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('clientes')">📋 Clientes</button>
+    <button class="tab" onclick="switchTab('dns')">🌐 Alterar DNS</button>
+    <button class="tab" onclick="switchTab('creditos')">🪙 Créditos</button>
+    <button class="tab" onclick="switchTab('projecao')">📈 Projeção</button>
+    <button class="tab" onclick="switchTab('controle')">📒 Controle do Mês</button>
+    <button class="tab" onclick="switchTab('previsao')">📅 Previsão Diária</button>
+  </div>
+
+  <!-- ========== ABA CLIENTES ========== -->
+  <div id="tab-clientes" class="tab-content active">
+
+    <!-- KPIs -->
+    <div class="kpis">
+      <div class="kpi green"><div class="kpi-label">✅ Clientes Ativos</div><div class="kpi-value" id="kpi-ativos">0</div><div class="kpi-sub">ativos</div></div>
+      <div class="kpi red"><div class="kpi-label">🔴 Clientes Expirados</div><div class="kpi-value" id="kpi-vencidos">0</div><div class="kpi-sub" id="kpi-vencidos-val">R$ 0,00</div></div>
+      <div class="kpi blue"><div class="kpi-label">👥 Total de Clientes</div><div class="kpi-value" id="kpi-total">0</div><div class="kpi-sub">cadastrados</div></div>
+    </div>
+
+
+
+    <!-- FORM CADASTRO -->
+    <div class="card">
+      <div class="topbar">
+        <h2>➕ Novo Cliente</h2>
+        <button class="btn btn-green" onclick="toggleForm('form-cliente')">➕ Cadastrar</button>
+      </div>
+      <div id="form-cliente" class="form-box" style="display:none">
+        <div class="form-row form-5">
+          <input type="text" id="f-nome" placeholder="Nome do cliente *">
+          <input type="date" id="f-venc">
+          <input type="number" id="f-valor" placeholder="Valor Cobrado R$" step="0.01" min="0">
+          <input type="text" id="f-app" placeholder="Aplicativo">
+          <select id="f-tec"><option>IPTV</option><option>Quick Player</option><option>Streaming</option><option>Outro</option></select>
+        </div>
+        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr auto">
+          <input type="text" id="f-fone" placeholder="WhatsApp (ex: 11999999999)">
+          <input type="text" id="f-obs" placeholder="Observações (opcional)">
+          <select id="f-meses">
+            <option value="1">Mensal (1 crédito)</option>
+            <option value="3">Trimestral (2,5 créditos)</option>
+            <option value="6">Semestral (5 créditos)</option>
+            <option value="12">Anual (10 créditos)</option>
+          </select>
+          <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#94a3b8" id="f-creditos-preview">= 1 crédito</div>
+          <button class="btn btn-green" onclick="addCliente()">💾 Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LISTA CLIENTES -->
+    <div class="card">
+      <div class="topbar">
+        <h2>📋 Lista de Clientes (<span id="count-clientes">0</span>)</h2>
+        <button class="btn btn-blue" onclick="exportPDF()">⬇ Exportar PDF</button>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="search-cliente" placeholder="🔍 Buscar cliente, app, obs..." oninput="renderClientes()">
+        <select id="filter-status" onchange="renderClientes()">
+          <option value="">Todos os status</option>
+          <option value="vencido">Vencidos</option>
+          <option value="hoje">Vencem hoje</option>
+          <option value="semana">Próximos 7 dias</option>
+          <option value="futuro">Futuros</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Cliente</th><th>Vencimento</th><th>Valor Cobrado</th><th>Aplicativo</th><th>Plano</th><th>Status</th><th>Obs</th><th>Ação</th>
+          </tr></thead>
+          <tbody id="tbody-clientes"></tbody>
+        </table>
+      </div>
+      <p class="muted">💾 Dados salvos automaticamente no seu navegador. Use "Exportar PDF" para backup.</p>
+    </div>
+  </div>
+
+  <!-- ========== ABA DNS ========== -->
+  <div id="tab-dns" class="tab-content">
+    <div class="card dns-card">
+      <div class="topbar">
+        <h2>🌐 Alterar DNS — Clientes (<span id="count-dns">0</span>)</h2>
+        <button class="btn btn-yellow" onclick="toggleForm('form-dns')">➕ Adicionar Cliente DNS</button>
+      </div>
+
+      <!-- FORM DNS -->
+      <div id="form-dns" class="form-box" style="display:none">
+        <p style="font-size:13px;color:#94a3b8;margin-bottom:10px">Preencha os dados do novo cliente DNS:</p>
+        <div class="form-row form-5dns">
+          <input type="text" id="df-nome" placeholder="Nome do cliente *">
+          <input type="text" id="df-app" placeholder="Aplicativo">
+          <input type="text" id="df-mac" placeholder="MAC Address">
+          <input type="text" id="df-senha" placeholder="Senha">
+          <input type="date" id="df-venc" title="Data de vencimento">
+        </div>
+        <div class="form-row" style="grid-template-columns:1fr auto">
+          <input type="text" id="df-obs" placeholder="Observações (ex: Enviar novo DNS)">
+          <button class="btn btn-green" onclick="addDns()">💾 Salvar</button>
+        </div>
+        <button class="btn btn-gray btn-sm" style="margin-top:6px" onclick="toggleForm('form-dns')">Cancelar</button>
+      </div>
+
+      <!-- BUSCA DNS -->
+      <div class="toolbar">
+        <input type="text" id="search-dns" placeholder="🔍 Buscar cliente, app, MAC, obs..." oninput="renderDns()">
+        <select id="filter-dns-venc" onchange="renderDns()">
+          <option value="">Todos os vencimentos</option>
+          <option value="mes">📅 Vencem este mês</option>
+          <option value="proximo">📅 Vencem mês que vem</option>
+          <option value="vencido">🔴 Já vencidos</option>
+          <option value="sem">— Sem vencimento</option>
+        </select>
+      </div>
+
+      <!-- KPI vencimentos DNS -->
+      <div id="dns-venc-banner" style="display:none;background:#1e3a5f;border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:#bfdbfe;display:flex;gap:20px;flex-wrap:wrap;align-items:center"></div>
+
+      <!-- TABELA DNS -->
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Cliente</th><th>Aplicativo</th><th>MAC Address</th><th>Senha</th><th>Data Venc.</th><th>Obs</th><th>Ação</th>
+          </tr></thead>
+          <tbody id="tbody-dns"></tbody>
+        </table>
+      </div>
+      <p class="muted">💡 Clique em 📋 para copiar o MAC ou Senha rapidamente. Dados salvos no navegador.</p>
+    </div>
+  </div>
+
+  <!-- ========== ABA CRÉDITOS ========== -->
+  <div id="tab-creditos" class="tab-content">
+
+    <!-- KPIs créditos -->
+    <!-- Saldo inicial -->
+    <div class="form-box" style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <label style="font-size:13px;color:#94a3b8">💰 Saldo inicial de créditos:</label>
+      <input type="number" id="saldo-inicial" placeholder="0" step="0.5" min="0" style="width:100px" oninput="salvarSaldoInicial()">
+      <span style="font-size:12px;color:#64748b">Define o saldo de partida antes das renovações registradas</span>
+    </div>
+    <div class="kpis" style="margin-bottom:20px">
+      <div class="kpi purple"><div class="kpi-label">🪙 Créditos Comprados</div><div class="kpi-value" id="cr-comprados">0</div><div class="kpi-sub" id="cr-comprados-val">R$ 0,00</div></div>
+      <div class="kpi red"><div class="kpi-label">📤 Créditos Usados no Mês</div><div class="kpi-value" id="cr-usados-mes">0</div><div class="kpi-sub" id="cr-usados-mes-val">R$ 0,00</div></div>
+      <div class="kpi green"><div class="kpi-label">✅ Créditos Disponíveis</div><div class="kpi-value" id="cr-disponiveis">0</div><div class="kpi-sub" id="cr-disponiveis-val">R$ 0,00</div></div>
+    </div>
+
+    <!-- Tabela de créditos por plano -->
+
+
+    <!-- Registrar compra -->
+    <div class="card">
+      <div class="topbar">
+        <h2>➕ Registrar Compra de Créditos</h2>
+        <button class="btn btn-green" onclick="toggleForm('form-compra')">➕ Nova Compra</button>
+      </div>
+      <div id="form-compra" class="form-box" style="display:none">
+        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <input type="date" id="cp-data">
+          <input type="number" id="cp-creditos" placeholder="Qtd créditos *" step="0.5" min="0">
+          <input type="number" id="cp-valor" placeholder="Valor pago R$ *" step="0.01" min="0">
+          <input type="text" id="cp-fornecedor" placeholder="Fornecedor / obs">
+        </div>
+        <button class="btn btn-green" onclick="addCompra()">💾 Salvar compra</button>
+      </div>
+
+      <!-- Lista de compras -->
+      <div class="table-wrap" style="margin-top:16px">
+        <table>
+          <thead><tr>
+            <th>Data</th><th>Créditos</th><th>Valor Pago</th><th>Preço/Crédito</th><th>Fornecedor/Obs</th><th>Ação</th>
+          </tr></thead>
+          <tbody id="tbody-compras"></tbody>
+        </table>
+      </div>
+      <p class="muted">💾 Histórico salvo no navegador.</p>
+    </div>
+
+    <!-- Bônus da Trilha -->
+    <div class="card" style="border-top:3px solid #f59e0b">
+      <div class="topbar">
+        <h2>🏆 Bônus da Trilha</h2>
+        <button class="btn btn-yellow" onclick="toggleForm('form-bonus')">➕ Registrar Bônus</button>
+      </div>
+      <div id="form-bonus" class="form-box" style="display:none">
+        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr auto">
+          <input type="date" id="bn-data">
+          <input type="number" id="bn-renovacoes" placeholder="Renovações *" min="1" step="1">
+          <input type="number" id="bn-pontos" placeholder="Pontos *" min="100" step="100">
+          <button class="btn btn-green" onclick="addBonus()">💾 Salvar</button>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-top:4px">A cada 100 pontos = 1 crédito bônus (máx 1000 pontos/dia)</p>
+      </div>
+      <div id="trilha-info" style="margin-bottom:16px;padding:12px;background:#0f172a;border-radius:8px;font-size:13px;color:#94a3b8">
+        Calculando pontos...
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Data</th><th>Renovações</th><th>Pontos</th><th>Créditos Bônus</th><th>Ação</th>
+          </tr></thead>
+          <tbody id="tbody-bonus"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- ========== ABA PROJEÇÃO ========== -->
+  <div id="tab-projecao" class="tab-content">
+    <div class="card">
+      <h2>📈 Projeção dos Próximos Meses</h2>
+      <p style="font-size:13px;color:#64748b;margin-bottom:16px">Cenário onde todos os clientes renovam — receita bruta e créditos necessários por mês.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Mês</th>
+            <th>Clientes</th>
+            <th>Receita Bruta</th>
+            <th>Custo Créditos</th>
+            <th>Lucro Estimado</th>
+          </tr></thead>
+          <tbody id="tbody-projecao"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== ABA CONTROLE DO MÊS ========== -->
+  <div id="tab-controle" class="tab-content">
+
+    <!-- Seletor de mês -->
+    <div class="card">
+      <div class="topbar">
+        <h2>📒 Controle do Mês</h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="controle-mes" onchange="renderControle()" style="width:180px">
+          </select>
+        </div>
+      </div>
+
+      <!-- KPIs do mês -->
+      <div class="kpis" style="margin-bottom:20px">
+        <div class="kpi green"><div class="kpi-label">✅ Clientes Pagaram</div><div class="kpi-value" id="ctrl-clientes">0</div><div class="kpi-sub">renovações</div></div>
+        <div class="kpi blue"><div class="kpi-label">💰 Total Recebido</div><div class="kpi-value" id="ctrl-receita">R$ 0</div><div class="kpi-sub" id="ctrl-receita-sub">no mês</div></div>
+        <div class="kpi red"><div class="kpi-label">🪙 Créditos Gastos</div><div class="kpi-value" id="ctrl-creditos">0</div><div class="kpi-sub" id="ctrl-custo">R$ 0,00</div></div>
+        <div class="kpi purple"><div class="kpi-label">📈 Lucro do Mês</div><div class="kpi-value" id="ctrl-lucro">R$ 0</div><div class="kpi-sub" id="ctrl-lucro-sub">líquido</div></div>
+      </div>
+
+      <!-- Tabela de pagamentos do mês -->
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Data</th>
+            <th>Cliente</th>
+            <th>Valor Pago</th>
+            <th>Créditos</th>
+            <th>Ação</th>
+          </tr></thead>
+          <tbody id="tbody-controle"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== ABA PREVISÃO DIÁRIA ========== -->
+  <div id="tab-previsao" class="tab-content">
+    <div class="card">
+      <div class="topbar">
+        <h2>📅 Previsão de Recebimento por Dia</h2>
+        <select id="previsao-mes" onchange="renderPrevisao()" style="width:180px"></select>
+      </div>
+
+      <!-- KPIs do mês -->
+      <div class="kpis" style="margin-bottom:20px">
+        <div class="kpi blue"><div class="kpi-label">📋 Clientes no Mês</div><div class="kpi-value" id="prev-clientes">0</div><div class="kpi-sub">a vencer</div></div>
+        <div class="kpi green"><div class="kpi-label">💰 Previsão Total</div><div class="kpi-value" id="prev-total">R$ 0</div><div class="kpi-sub">se todos pagarem</div></div>
+        <div class="kpi yellow"><div class="kpi-label">📆 Dias com Vencimento</div><div class="kpi-value" id="prev-dias">0</div><div class="kpi-sub">dias no mês</div></div>
+      </div>
+
+      <!-- Tabela por dia -->
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Dia</th>
+            <th>Clientes</th>
+            <th>Valor Previsto</th>
+            <th>Detalhes</th>
+          </tr></thead>
+          <tbody id="tbody-previsao"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- MODAL EDITAR DNS -->
+<div class="modal-overlay" id="modal-dns">
+  <div class="modal">
+    <h3>✏️ Editar Cliente DNS</h3>
+    <div class="modal-grid">
+      <input type="text" id="edit-nome" placeholder="Nome *">
+      <input type="text" id="edit-app" placeholder="Aplicativo">
+      <input type="text" id="edit-mac" placeholder="MAC Address">
+      <input type="text" id="edit-senha" placeholder="Senha">
+      <input type="date" id="edit-venc" title="Data de vencimento">
+      <input type="text" id="edit-obs" placeholder="Observações">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-green" onclick="salvarEdicaoDns()">💾 Salvar alterações</button>
+      <button class="btn btn-gray" onclick="fecharModal('modal-dns')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RENOVAR -->
+<div class="modal-overlay" id="modal-renovar">
+  <div class="modal" style="border-top-color:#10b981">
+    <h3>🔄 Renovar Cliente</h3>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:14px" id="renovar-nome"></p>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:6px">Nova data de vencimento</label>
+      <input type="date" id="renovar-data" style="width:100%">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-green" onclick="confirmarRenovar()">💾 Renovar</button>
+      <button class="btn btn-gray" onclick="fecharModal('modal-renovar')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR CLIENTE -->
+<div class="modal-overlay" id="modal-cliente">
+  <div class="modal" style="border-top-color:#3b82f6">
+    <h3>✏️ Editar Cliente</h3>
+    <div class="modal-grid">
+      <input type="text" id="ec-nome" placeholder="Nome *">
+      <input type="date" id="ec-venc" title="Vencimento">
+      <input type="number" id="ec-valor" placeholder="Valor Cobrado R$" step="0.01" min="0">
+      <input type="text" id="ec-app" placeholder="Aplicativo">
+      <select id="ec-tec"><option>IPTV</option><option>Quick Player</option><option>Streaming</option><option>Outro</option></select>
+      <select id="ec-meses">
+        <option value="1">Mensal (1 crédito)</option>
+        <option value="3">Trimestral (2,5 créditos)</option>
+        <option value="6">Semestral (5 créditos)</option>
+        <option value="12">Anual (10 créditos)</option>
+      </select>
+      <input type="text" id="ec-fone" placeholder="WhatsApp (ex: 11999999999)">
+      <input type="text" id="ec-obs" placeholder="Observações" style="grid-column:span 2">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-green" onclick="salvarEdicaoCliente()">💾 Salvar alterações</button>
+      <button class="btn btn-gray" onclick="fecharModal('modal-cliente')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script src="dashboard_iptv_final_LIMPO.js"></script>
+</body>
+</html>
