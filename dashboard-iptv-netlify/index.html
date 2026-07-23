@@ -44,7 +44,22 @@ window.fbSave = fbSave;
 
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 20px; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 20px; transition: background .3s, color .3s; }
+body.tema-claro { background: #f1f5f9; color: #1e293b; }
+body.tema-claro .card { background: #ffffff; border-color: #e2e8f0; }
+body.tema-claro .kpi { background: #ffffff; }
+body.tema-claro input, body.tema-claro select, body.tema-claro textarea { background: #f8fafc; color: #1e293b; border-color: #cbd5e1; }
+body.tema-claro table { background: #ffffff; }
+body.tema-claro th { background: #f1f5f9; color: #475569; }
+body.tema-claro tr:hover { background: #f8fafc; }
+body.tema-claro .modal { background: #ffffff; }
+body.tema-claro .modal-overlay { background: rgba(0,0,0,0.5); }
+body.tema-claro .tabs { background: #e2e8f0; }
+body.tema-claro .tab { color: #475569; }
+body.tema-claro .tab.active { background: #ffffff; color: #1e293b; }
+body.tema-claro .kpi-label { color: #64748b; }
+body.tema-claro .kpi-sub { color: #94a3b8; }
+body.tema-claro #tela-senha { background: #f1f5f9; }
 .container { max-width: 1400px; margin: 0 auto; }
 h1 { font-size: 28px; margin-bottom: 4px; background: linear-gradient(90deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 .subtitle { color: #94a3b8; margin-bottom: 20px; font-size: 14px; }
@@ -122,6 +137,11 @@ tr:hover td { background: #0f172a55; }
 .tag-hoje { background: #064e3b; color: #a7f3d0; }
 .tag-semana { background: #78350f; color: #fde68a; }
 .tag-ok { background: #1e3a5f; color: #bfdbfe; }
+.tag-yellow { background: #78350f; color: #fde68a; }
+.tag-green { background: #064e3b; color: #a7f3d0; }
+.tag-blue { background: #1e3a5f; color: #bfdbfe; }
+.tag-purple { background: #3b0764; color: #e9d5ff; }
+.tag-red { background: #7f1d1d; color: #fecaca; }
 
 /* FORM GRIDS */
 .form-row { display: grid; gap: 8px; margin-bottom: 10px; }
@@ -138,9 +158,31 @@ tr:hover td { background: #0f172a55; }
 </style>
 </head>
 <body>
+<div id="tela-senha" style="display:none;position:fixed;inset:0;background:#0f172a;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="font-size:48px">🔐</div>
+  <h2 style="color:#e2e8f0;margin:0">Dashboard IPTV</h2>
+  <p style="color:#94a3b8;margin:0">Digite a senha para acessar</p>
+  <div style="display:flex;gap:8px">
+    <input type="password" id="senha-input" placeholder="Senha" style="width:200px;font-size:16px" onkeydown="if(event.key==='Enter')verificarSenha()">
+    <button class="btn btn-green" onclick="verificarSenha()">Entrar</button>
+  </div>
+  <p id="senha-erro" style="color:#ef4444;font-size:13px;display:none">Senha incorreta!</p>
+</div>
+
+<div id="app-conteudo">
 <div class="container">
-  <h1>📊 Dashboard IPTV <span id="sync-status" style="font-size:13px;font-weight:400;color:#94a3b8;-webkit-text-fill-color:#94a3b8">🔄 Conectando...</span></h1>
-  <p class="subtitle">Gestão de clientes — sincronizado na nuvem ☁️</p>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+    <div>
+      <h1>📊 Dashboard IPTV <span id="sync-status" style="font-size:13px;font-weight:400;color:#94a3b8;-webkit-text-fill-color:#94a3b8">🔄 Conectando...</span></h1>
+      <p class="subtitle" style="margin:0">Gestão de clientes — sincronizado na nuvem ☁️</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-gray" onclick="abrirLembrete()" id="btn-lembrete" style="display:none">🔔 <span id="lembrete-count">0</span> vencem amanhã</button>
+      <button class="btn btn-gray" onclick="toggleTema()" id="btn-tema">🌙 Escuro</button>
+      <button class="btn btn-gray" onclick="abrirBackup()">💾 Backup</button>
+      <button class="btn btn-gray" onclick="abrirSenha()">🔑 Senha</button>
+    </div>
+  </div>
 
   <!-- TABS -->
   <div class="tabs">
@@ -157,9 +199,26 @@ tr:hover td { background: #0f172a55; }
 
     <!-- KPIs -->
     <div class="kpis">
-      <div class="kpi green"><div class="kpi-label">✅ Clientes Ativos</div><div class="kpi-value" id="kpi-ativos">0</div><div class="kpi-sub">ativos</div></div>
-      <div class="kpi red"><div class="kpi-label">🔴 Clientes Expirados</div><div class="kpi-value" id="kpi-vencidos">0</div><div class="kpi-sub" id="kpi-vencidos-val">R$ 0,00</div></div>
-      <div class="kpi blue"><div class="kpi-label">👥 Total de Clientes</div><div class="kpi-value" id="kpi-total">0</div><div class="kpi-sub">cadastrados</div></div>
+      <div class="kpi green" style="cursor:pointer" onclick="abrirKpiModal('ativos')" title="Ver clientes ativos"><div class="kpi-label">✅ Clientes Ativos</div><div class="kpi-value" id="kpi-ativos">0</div><div class="kpi-sub">ativos</div></div>
+      <div class="kpi red" style="cursor:pointer" onclick="abrirKpiModal('expirados')" title="Ver clientes expirados"><div class="kpi-label">🔴 Clientes Expirados</div><div class="kpi-value" id="kpi-vencidos">0</div><div class="kpi-sub" id="kpi-vencidos-val">R$ 0,00</div></div>
+      <div class="kpi blue" style="cursor:pointer" onclick="abrirKpiModal('todos')" title="Ver todos os clientes"><div class="kpi-label">👥 Total de Clientes</div><div class="kpi-value" id="kpi-total">0</div><div class="kpi-sub">cadastrados</div></div>
+      <div class="kpi yellow" style="cursor:pointer" onclick="abrirKpiModal('ranking')" title="Ver ranking por receita"><div class="kpi-label">🏆 Ranking</div><div class="kpi-value" id="kpi-receita-total">0</div><div class="kpi-sub">receita mensal</div></div>
+    </div>
+
+    <!-- BANNER DE ALERTAS -->
+    <div id="alert-banner" style="display:none;margin-bottom:20px;padding:14px 18px;border-radius:10px;background:#1e293b;border-left:4px solid #ef4444;font-size:14px;display:flex;gap:18px;flex-wrap:wrap;align-items:center"></div>
+
+
+    <!-- GRÁFICOS: VENCIMENTOS + CUSTO x RECEITA -->
+    <div class="row" style="margin-bottom:20px">
+      <div class="card">
+        <h2>📅 Vencimentos por Mês</h2>
+        <div class="chart-wrap"><canvas id="chartMes"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>💰 Receita vs Custo (últimos 6 meses)</h2>
+        <div class="chart-wrap"><canvas id="chartCustoReceita"></canvas></div>
+      </div>
     </div>
 
 
@@ -175,7 +234,8 @@ tr:hover td { background: #0f172a55; }
           <input type="text" id="f-nome" placeholder="Nome do cliente *">
           <input type="date" id="f-venc">
           <input type="number" id="f-valor" placeholder="Valor Cobrado R$" step="0.01" min="0">
-          <input type="text" id="f-app" placeholder="Aplicativo">
+          <input type="text" id="f-app" placeholder="Aplicativo" list="apps-sugestoes" autocomplete="off">
+          <datalist id="apps-sugestoes"></datalist>
           <select id="f-tec"><option>IPTV</option><option>Quick Player</option><option>Streaming</option><option>Outro</option></select>
         </div>
         <div class="form-row" style="grid-template-columns:1fr 1fr 1fr auto">
@@ -197,7 +257,13 @@ tr:hover td { background: #0f172a55; }
     <div class="card">
       <div class="topbar">
         <h2>📋 Lista de Clientes (<span id="count-clientes">0</span>)</h2>
-        <button class="btn btn-blue" onclick="exportPDF()">⬇ Exportar PDF</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-yellow" onclick="abrirCobranca()">📢 Cobrar Vencidos</button>
+          <button class="btn btn-green" onclick="abrirImportacao()">📥 Importar</button>
+          <button class="btn btn-blue" id="btn-renovar-massa" onclick="abrirRenovarMassa()" style="display:none">🔄 Renovar Selecionados (<span id="count-selecionados">0</span>)</button>
+          <button class="btn btn-blue" onclick="exportPDF()">⬇ Exportar PDF</button>
+          <button class="btn" style="background:#6366f1" onclick="gerarRelatorioMensal()">📊 Relatório</button>
+        </div>
       </div>
       <div class="toolbar">
         <input type="text" id="search-cliente" placeholder="🔍 Buscar cliente, app, obs..." oninput="renderClientes()">
@@ -208,11 +274,18 @@ tr:hover td { background: #0f172a55; }
           <option value="semana">Próximos 7 dias</option>
           <option value="futuro">Futuros</option>
         </select>
+        <select id="filter-app" onchange="renderClientes()">
+          <option value="">Todos os apps</option>
+        </select>
       </div>
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>Cliente</th><th>Vencimento</th><th>Valor Cobrado</th><th>Aplicativo</th><th>Plano</th><th>Status</th><th>Obs</th><th>Ação</th>
+            <th><input type="checkbox" id="chk-todos" onchange="toggleTodos(this.checked)" title="Selecionar todos"></th>
+            <th style="cursor:pointer" onclick="ordenarPor('cliente')">Cliente <span id="sort-cliente"></span></th>
+            <th style="cursor:pointer" onclick="ordenarPor('venc')">Vencimento <span id="sort-venc"></span></th>
+            <th style="cursor:pointer" onclick="ordenarPor('valor')">Valor Cobrado <span id="sort-valor"></span></th>
+            <th>Aplicativo</th><th>Plano</th><th>Status</th><th>Obs</th><th>Ação</th>
           </tr></thead>
           <tbody id="tbody-clientes"></tbody>
         </table>
@@ -278,19 +351,27 @@ tr:hover td { background: #0f172a55; }
   <div id="tab-creditos" class="tab-content">
 
     <!-- KPIs créditos -->
-    <!-- Saldo inicial -->
-    <div class="form-box" style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <label style="font-size:13px;color:#94a3b8">💰 Saldo inicial de créditos:</label>
-      <input type="number" id="saldo-inicial" placeholder="0" step="0.5" min="0" style="width:100px" oninput="salvarSaldoInicial()">
-      <span style="font-size:12px;color:#64748b">Define o saldo de partida antes das renovações registradas</span>
-    </div>
     <div class="kpis" style="margin-bottom:20px">
       <div class="kpi purple"><div class="kpi-label">🪙 Créditos Comprados</div><div class="kpi-value" id="cr-comprados">0</div><div class="kpi-sub" id="cr-comprados-val">R$ 0,00</div></div>
       <div class="kpi red"><div class="kpi-label">📤 Créditos Usados no Mês</div><div class="kpi-value" id="cr-usados-mes">0</div><div class="kpi-sub" id="cr-usados-mes-val">R$ 0,00</div></div>
       <div class="kpi green"><div class="kpi-label">✅ Créditos Disponíveis</div><div class="kpi-value" id="cr-disponiveis">0</div><div class="kpi-sub" id="cr-disponiveis-val">R$ 0,00</div></div>
     </div>
 
-    <!-- Tabela de créditos por plano -->
+    <!-- Detalhamento créditos usados -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="topbar">
+        <h2>📤 Detalhamento — Créditos Usados no Mês</h2>
+        <select id="det-mes" onchange="renderDetalhamentoCreditos()" style="width:180px"></select>
+      </div>
+      <div class="table-wrap" style="max-height:320px">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Data</th><th>Cliente</th><th>Plano</th><th>Créditos</th><th>Saldo após</th>
+          </tr></thead>
+          <tbody id="tbody-det-creditos"></tbody>
+        </table>
+      </div>
+    </div>
 
 
     <!-- Registrar compra -->
@@ -319,6 +400,23 @@ tr:hover td { background: #0f172a55; }
         </table>
       </div>
       <p class="muted">💾 Histórico salvo no navegador.</p>
+    </div>
+
+    <!-- Histórico Mensal de Créditos -->
+    <div class="card" style="margin-bottom:20px">
+      <h2>📊 Histórico Mensal de Créditos</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Mês</th>
+            <th>Créditos Comprados</th>
+            <th>Créditos Usados</th>
+            <th>Bônus Recebidos</th>
+            <th>Saldo do Mês</th>
+          </tr></thead>
+          <tbody id="tbody-historico-creditos"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Bônus da Trilha -->
@@ -440,6 +538,199 @@ tr:hover td { background: #0f172a55; }
   </div>
 
 </div><!-- /container -->
+</div><!-- /app-conteudo -->
+
+<!-- MODAL BACKUP -->
+<div class="modal-overlay" id="modal-backup">
+  <div class="modal" style="border-top-color:#8b5cf6;max-width:560px">
+    <h3>💾 Backup dos Dados</h3>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">Exporte todos os dados do dashboard em JSON para salvar no seu computador. Para restaurar, cole o conteúdo no campo abaixo.</p>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn btn-green" onclick="exportarBackup()">⬇ Exportar JSON</button>
+      <button class="btn btn-blue" onclick="document.getElementById('backup-import-area').style.display='block'">⬆ Importar JSON</button>
+    </div>
+    <div id="backup-import-area" style="display:none">
+      <textarea id="backup-texto" rows="6" style="width:100%;font-family:monospace;font-size:12px" placeholder="Cole aqui o conteúdo do arquivo de backup..."></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-red" onclick="importarBackup()">⚠️ Restaurar (substitui tudo)</button>
+        <button class="btn btn-gray" onclick="document.getElementById('backup-import-area').style.display='none'">Cancelar</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-gray" onclick="fecharModal('modal-backup')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SENHA -->
+<div class="modal-overlay" id="modal-senha">
+  <div class="modal" style="border-top-color:#f59e0b;max-width:440px">
+    <h3>🔑 Proteção por Senha</h3>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:14px">Define uma senha para proteger o acesso ao dashboard. Deixe em branco para remover a proteção.</p>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input type="password" id="nova-senha" placeholder="Nova senha" style="flex:1">
+      <input type="password" id="conf-senha" placeholder="Confirmar senha" style="flex:1">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-green" onclick="salvarSenha()">💾 Salvar</button>
+      <button class="btn btn-red" onclick="removerSenha()">🗑 Remover senha</button>
+      <button class="btn btn-gray" onclick="fecharModal('modal-senha')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LEMBRETE VENCIMENTOS AMANHÃ -->
+<div class="modal-overlay" id="modal-lembrete">
+  <div class="modal" style="border-top-color:#f59e0b;max-width:620px">
+    <div class="topbar" style="margin-bottom:14px">
+      <h3>🔔 Vencem Amanhã</h3>
+      <button class="btn btn-green" onclick="enviarLembreteEmMassa()" id="btn-lembrete-massa">📲 Enviar todos</button>
+    </div>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:12px">Clientes com vencimento amanhã — clique em 📲 para abrir o WhatsApp com mensagem de lembrete.</p>
+    <div class="table-wrap" style="max-height:340px">
+      <table>
+        <thead><tr><th>Cliente</th><th>Valor</th><th>WhatsApp</th><th>Ação</th></tr></thead>
+        <tbody id="tbody-lembrete"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-gray" onclick="fecharModal('modal-lembrete')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL KPI CLIENTES -->
+<div class="modal-overlay" id="modal-kpi">
+  <div class="modal" style="max-width:700px">
+    <div class="topbar" style="margin-bottom:14px">
+      <h3 id="kpi-modal-titulo">Clientes</h3>
+      <input type="text" id="kpi-modal-busca" placeholder="🔍 Buscar..." style="width:200px" oninput="filtrarKpiModal()">
+    </div>
+    <div id="kpi-modal-resumo" style="font-size:13px;color:#94a3b8;margin-bottom:12px"></div>
+    <div class="table-wrap" style="max-height:420px">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Cliente</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>WhatsApp</th>
+        </tr></thead>
+        <tbody id="tbody-kpi-modal"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-gray" onclick="fecharModal('modal-kpi')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RENOVAÇÃO EM MASSA -->
+<div class="modal-overlay" id="modal-renovar-massa">
+  <div class="modal" style="border-top-color:#10b981;max-width:640px">
+    <h3>🔄 Renovar Clientes Selecionados</h3>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:14px">Informe a nova data de vencimento — será aplicada a todos os clientes selecionados.</p>
+    <div id="massa-lista" style="max-height:200px;overflow:auto;margin-bottom:14px;font-size:13px;color:#cbd5e1;background:#0f172a;border-radius:8px;padding:10px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div>
+        <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:4px">Data do pagamento</label>
+        <input type="date" id="massa-pgto" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:4px">Nova data de vencimento *</label>
+        <input type="date" id="massa-venc" style="width:100%">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-green" onclick="confirmarRenovarMassa()">💾 Renovar Todos</button>
+      <button class="btn btn-gray" onclick="fecharModal('modal-renovar-massa')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RELATÓRIO MENSAL -->
+<div class="modal-overlay" id="modal-relatorio">
+  <div class="modal" style="border-top-color:#6366f1;max-width:700px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3>📊 Relatório Mensal</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="rel-mes" onchange="renderRelatorio()" style="width:180px"></select>
+        <button class="btn btn-blue" onclick="exportarRelatorio()">⬇ Exportar PDF</button>
+      </div>
+    </div>
+    <div id="rel-conteudo"></div>
+    <div class="modal-actions">
+      <button class="btn btn-gray" onclick="fecharModal('modal-relatorio')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPORTAÇÃO EM MASSA -->
+<div class="modal-overlay" id="modal-importar">
+  <div class="modal" style="border-top-color:#10b981;max-width:680px">
+    <h3>📥 Importar Clientes em Massa</h3>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:10px">
+      Cole um cliente por linha, separando os campos por <strong>ponto e vírgula ( ; )</strong> ou <strong>Tab</strong> (colar do Excel funciona):<br>
+      <code style="color:#fbbf24;font-size:12px">Nome ; Vencimento (dd/mm/aaaa) ; Valor ; WhatsApp ; Observações</code><br>
+      <span style="font-size:12px;color:#64748b">Só Nome e Vencimento são obrigatórios. Valor sem preencher = R$ 40,00.</span>
+    </p>
+    <textarea id="imp-texto" rows="10" style="width:100%;font-family:monospace;font-size:12px" placeholder="Gustavo Zeni ; 27/12/2026 ; 40 ; 11999999999 ; Cliente novo&#10;Maria Silva ; 10/08/2026 ; 35"></textarea>
+    <div id="imp-preview" style="font-size:13px;color:#94a3b8;margin-top:10px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-blue" onclick="previewImportacao()">👁 Pré-visualizar</button>
+      <button class="btn btn-green" onclick="confirmarImportacao()">💾 Importar</button>
+      <button class="btn btn-gray" onclick="fecharModal('modal-importar')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL HISTÓRICO DE PAGAMENTOS -->
+<div class="modal-overlay" id="modal-historico">
+  <div class="modal" style="border-top-color:#8b5cf6;max-width:640px">
+    <h3 id="hist-titulo">📜 Histórico de Pagamentos</h3>
+    <div id="hist-resumo" style="font-size:13px;color:#94a3b8;margin-bottom:12px"></div>
+    <div class="table-wrap" style="max-height:340px">
+      <table>
+        <thead><tr><th>Data</th><th>Valor Pago</th><th>Plano</th><th>Créditos</th></tr></thead>
+        <tbody id="tbody-historico"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-gray" onclick="fecharModal('modal-historico')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COBRANÇA EM MASSA -->
+<div class="modal-overlay" id="modal-cobranca">
+  <div class="modal" style="border-top-color:#f59e0b;max-width:640px">
+    <h3>📢 Cobrar Clientes Vencidos</h3>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:12px">Clique em <strong>Enviar</strong> em cada cliente — abre o WhatsApp com a mensagem pronta. Enviados ficam marcados ✅.</p>
+    <div class="table-wrap" style="max-height:340px">
+      <table>
+        <thead><tr><th>Cliente</th><th>Venceu em</th><th>Valor</th><th>Ação</th></tr></thead>
+        <tbody id="tbody-cobranca"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-gray" onclick="fecharModal('modal-cobranca')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TEMPLATE WHATSAPP -->
+<div class="modal-overlay" id="modal-template">
+  <div class="modal" style="border-top-color:#25d366;max-width:640px">
+    <h3>✏️ Personalizar Mensagem do WhatsApp</h3>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:10px">
+      Use as variáveis: <code style="color:#fbbf24">{nome}</code> <code style="color:#fbbf24">{venc}</code> <code style="color:#fbbf24">{dias}</code> <code style="color:#fbbf24">{valor}</code><br>
+      <span style="font-size:12px;color:#64748b">Deixe em branco e salve para voltar à mensagem padrão.</span>
+    </p>
+    <textarea id="tpl-texto" rows="5" style="width:100%;font-size:13px" placeholder="Olá {nome}! Sua assinatura vence em {venc}. Valor: {valor}. Renove para não ficar sem! 😊"></textarea>
+    <div id="tpl-preview" style="font-size:12px;color:#94a3b8;margin-top:10px;padding:10px;background:#0f172a;border-radius:6px;display:none"></div>
+    <div class="modal-actions">
+      <button class="btn btn-blue" onclick="previewTemplate()">👁 Testar</button>
+      <button class="btn btn-green" onclick="salvarTemplate()">💾 Salvar</button>
+      <button class="btn btn-gray" onclick="fecharModal('modal-template')">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL EDITAR DNS -->
 <div class="modal-overlay" id="modal-dns">
@@ -465,6 +756,10 @@ tr:hover td { background: #0f172a55; }
   <div class="modal" style="border-top-color:#10b981">
     <h3>🔄 Renovar Cliente</h3>
     <p style="font-size:13px;color:#94a3b8;margin-bottom:14px" id="renovar-nome"></p>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:6px">Data do pagamento</label>
+      <input type="date" id="renovar-pgto" style="width:100%">
+    </div>
     <div style="margin-bottom:14px">
       <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:6px">Nova data de vencimento</label>
       <input type="date" id="renovar-data" style="width:100%">
@@ -502,6 +797,1890 @@ tr:hover td { background: #0f172a55; }
   </div>
 </div>
 
-<script src="dashboard_iptv_final_LIMPO.js"></script>
+<script>
+// ============================================================
+// DADOS
+// ============================================================
+const CL_KEY = 'iptv_clientes_v1';
+const DN_KEY = 'iptv_dns_v1';
+const CP_KEY = 'iptv_compras_v1';
+const PG_KEY = 'iptv_pagamentos_v1';
+const BN_KEY = 'iptv_bonus_v1';
+const SI_KEY = 'iptv_saldo_inicial_v1';
+const CUSTO_CREDITO = 6.50;
+
+// Créditos por plano
+const PLANOS = {1: 1, 3: 2.5, 6: 5, 12: 10};
+function creditosPorMeses(m) { return PLANOS[+m] || 1; }
+
+const CL_SEED = [
+  {cliente:"Ronaldo Castelli Pai",venc:"2026-05-25",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Patrícia Bastos",venc:"2026-05-25",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Darley",venc:"2026-05-25",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Du QIC Filha",venc:"2026-05-27",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Fagner",venc:"2026-05-29",valor:40,app:"Ultra Player",tec:"IPTV",obs:""},
+  {cliente:"Ed",venc:"2026-06-01",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Sara",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Luciano Orlando",venc:"2026-06-10",valor:40,app:"Duplecast",tec:"IPTV",obs:""},
+  {cliente:"Bianca",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Leonardo Premero",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Ivana",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Elvys Rick",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Alessandra",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Rosangela",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Rodrigo Evaristo",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Francisco",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Jean Maciel",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Ademilso",venc:"2026-06-10",valor:40,app:"Ultra Player",tec:"IPTV",obs:""},
+  {cliente:"Magali",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Silvio",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Sueli Ponto 1",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Sueli Ponto 2",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Gabriel Coelho",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Val",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Paulo Albuquerque",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Irene",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Guilherme Veronese",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Bernardo",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Janaina",venc:"2026-06-10",valor:40,app:"Quick Player",tec:"IPTV",obs:""},
+  {cliente:"Alexandre Ponto 2",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Thayna",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Maria Aparecida",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Minzon",venc:"2026-06-10",valor:0,app:"",tec:"IPTV",obs:"Pago até Janeiro de 2027"},
+  {cliente:"Marcelo Motta Ponto 2",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Rose Moreno",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Leonardo Ponto 2",venc:"2026-06-10",valor:35,app:"IPTV Smarters",tec:"IPTV",obs:""},
+  {cliente:"Leonardo Ponto 1",venc:"2026-06-10",valor:35,app:"IPTV Smarters",tec:"IPTV",obs:""},
+  {cliente:"Leandro",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Reginaldo hbf",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Efigênia",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Natalia Ponto 3",venc:"2026-06-10",valor:100,app:"",tec:"IPTV",obs:""},
+  {cliente:"Gabriel Garcia",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Alexandra",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Ana Claudia",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Lucas Augusto",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Larissa Serafim",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Alexandre Ponto 1",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Gabriela",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Natalia Smart STB",venc:"2026-06-10",valor:0,app:"Smart STB",tec:"IPTV",obs:""},
+  {cliente:"Julio",venc:"2026-06-10",valor:40,app:"TVBOX",tec:"IPTV",obs:""},
+  {cliente:"Carol Pires",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Diego",venc:"2026-06-10",valor:0,app:"Quick Player",tec:"IPTV",obs:""},
+  {cliente:"Natalia Ultra Player",venc:"2026-06-10",valor:0,app:"Ultra Player",tec:"IPTV",obs:""},
+  {cliente:"Marcelo Motta",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Caroline Pereira",venc:"2026-06-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Jéssica Aparecida",venc:"2026-06-11",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Anderson",venc:"2026-06-11",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Rafael",venc:"2026-06-13",valor:40,app:"Duplecast",tec:"IPTV",obs:""},
+  {cliente:"Du QIC Ponto 2",venc:"2026-06-14",valor:40,app:"Ibo Player",tec:"IPTV",obs:""},
+  {cliente:"Matheus Passos",venc:"2026-06-15",valor:40,app:"Smart STB",tec:"IPTV",obs:""},
+  {cliente:"Gabriela RD",venc:"2026-06-15",valor:30,app:"",tec:"IPTV",obs:""},
+  {cliente:"Maria Amalia",venc:"2026-06-15",valor:30,app:"",tec:"IPTV",obs:""},
+  {cliente:"Giovani Mendes Ponto 2",venc:"2026-06-16",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Sonia",venc:"2026-06-20",valor:40,app:"Quick Player",tec:"IPTV",obs:""},
+  {cliente:"Lucas Barreto",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Homero Ponto 1",venc:"2026-06-20",valor:35,app:"",tec:"IPTV",obs:""},
+  {cliente:"Homero Ponto 2",venc:"2026-06-20",valor:35,app:"",tec:"IPTV",obs:""},
+  {cliente:"Giovani Mendes Ponto 1",venc:"2026-06-20",valor:20,app:"",tec:"IPTV",obs:""},
+  {cliente:"Cintia Ponto 1",venc:"2026-06-20",valor:35,app:"",tec:"IPTV",obs:""},
+  {cliente:"Cintia Ponto 2",venc:"2026-06-20",valor:35,app:"Duplecast",tec:"IPTV",obs:""},
+  {cliente:"Renato",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Fabio Pereira Ponto 2",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Camila Alves",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Igão",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Fefê",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Rebeka",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Rafael Cansian",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Isabelly",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Heudes",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Joana",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Rogério",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Danilo",venc:"2026-06-20",valor:0,app:"",tec:"IPTV",obs:""},
+  {cliente:"Jéssica",venc:"2026-06-20",valor:40,app:"Duplecast",tec:"IPTV",obs:""},
+  {cliente:"Gilvane",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Sidnei",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Reginaldo",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Marcelo",venc:"2026-06-20",valor:40,app:"Ultra Player",tec:"IPTV",obs:""},
+  {cliente:"Janete",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Nando",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Tabata Lage",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Fabio Pereira Ponto 1",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Lucas Miranda Ponto 2",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Fernando Moreira",venc:"2026-06-20",valor:35,app:"",tec:"IPTV",obs:""},
+  {cliente:"Jefferson Santos",venc:"2026-06-20",valor:35,app:"",tec:"IPTV",obs:""},
+  {cliente:"Amanda Ellen",venc:"2026-06-21",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Kelven Lazer Play Ponto 2",venc:"2026-06-21",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Matheus Filho",venc:"2026-06-21",valor:0,app:"",tec:"IPTV",obs:""},
+  {cliente:"Fernando Lourenço",venc:"2026-06-23",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Léo Igreja",venc:"2026-06-24",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Navarro",venc:"2026-06-24",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Caio Felipe",venc:"2026-06-25",valor:40,app:"SmartOne",tec:"IPTV",obs:""},
+  {cliente:"Renan Camargo",venc:"2026-06-25",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Isabelly Celular",venc:"2026-06-25",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Gustavo Zeni",venc:"2026-06-26",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Kaio",venc:"2026-07-01",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Edgar",venc:"2026-07-08",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Kelven Ponto 1",venc:"2026-07-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Jacqueline",venc:"2026-07-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Osvaldo",venc:"2026-07-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Percival",venc:"2026-07-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Flavio",venc:"2026-07-12",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Victor",venc:"2026-07-13",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Edmilson",venc:"2026-07-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Viviane Castelli",venc:"2026-07-26",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Kelly Ponto 2",venc:"2026-08-01",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Kelly Ponto 1",venc:"2026-08-01",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Elaine",venc:"2026-08-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Gilberto",venc:"2026-08-17",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Wedson",venc:"2026-08-17",valor:40,app:"Quick Player",tec:"IPTV",obs:""},
+  {cliente:"Ronaldo Castelli",venc:"2026-09-25",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Juan Santana",venc:"2026-10-10",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Carlos Lima",venc:"2026-10-18",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Cátia",venc:"2026-11-18",valor:40,app:"Quick Player",tec:"IPTV",obs:"Assinatura Quick Player até 7/4/2027"},
+  {cliente:"Fernando Teixeira",venc:"2026-12-20",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"André",venc:"2027-04-22",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Vitão",venc:"2027-05-20",valor:40,app:"Duplex",tec:"IPTV",obs:""},
+  {cliente:"Ronaldo Castelli Sogro",venc:"2026-09-25",valor:40,app:"",tec:"IPTV",obs:""},
+  {cliente:"Lucas Miranda Ponto 1",venc:"2026-06-20",valor:40,app:"",tec:"IPTV",obs:""},
+];
+
+const DN_SEED = [
+  {cliente:"Gilberto",app:"Quick Player",mac:"79735823792b",senha:"769901",venc:"",obs:""},
+  {cliente:"Rogério",app:"Duplecast",mac:"d0c24e750930",senha:"1707264632",venc:"",obs:""},
+  {cliente:"Sidnei",app:"Duplecast",mac:"f84e58b40641",senha:"1700962932",venc:"",obs:""},
+  {cliente:"Vitão",app:"Duplex",mac:"15829457646c",senha:"1535477140",venc:"",obs:""},
+  {cliente:"Navarro",app:"Bay iptv",mac:"68fcca28851c",senha:"NYRU46",venc:"",obs:""},
+  {cliente:"Caio",app:"Smartone",mac:"bcc2d905a3c7",senha:"",venc:"",obs:""},
+  {cliente:"Kaio",app:"Duplecast",mac:"20174275f0f8",senha:"1710012774",venc:"",obs:""},
+  {cliente:"Jefferson Santos",app:"Smartone",mac:"b8b40973f343",senha:"",venc:"",obs:""},
+  {cliente:"Gustavo Zeni",app:"Duplecast",mac:"58fdb1c7e40f",senha:"1703279801",venc:"",obs:""},
+  {cliente:"Jessica",app:"Duplecast",mac:"1c869a7f9e4a",senha:"1676918947",venc:"",obs:""},
+  {cliente:"Maria Aparecida",app:"Duplecast",mac:"fc039f74ca96",senha:"1679176586",venc:"",obs:""},
+  {cliente:"Léo",app:"IBO",mac:"c8:a6:ef:7a:54:5e",senha:"329747",venc:"2026-10-22",obs:""},
+  {cliente:"Du QIC",app:"Bay iptv",mac:"e47dbd17c49",senha:"",venc:"2027-04-27",obs:""},
+  {cliente:"Du QIC",app:"Quick Player",mac:"1c869a80020b",senha:"28623",venc:"2027-02-13",obs:""},
+  {cliente:"Cintia",app:"Duplecast",mac:"70:B1:3D:38:1A:38",senha:"1665541299",venc:"2026-10-24",obs:""},
+  {cliente:"Francisco",app:"IBO",mac:"9C:8C:6E:8E:A0:60",senha:"210312",venc:"2027-02-27",obs:""},
+  {cliente:"Carlos Lima",app:"",mac:"",senha:"",venc:"",obs:"Enviar novo DNS"},
+];
+
+// ============================================================
+// STATE
+// ============================================================
+// Limpa chaves corrompidas de versões anteriores
+['iptv_reset_v1','iptv_v3','iptv_ver_5'].forEach(k => localStorage.removeItem(k));
+
+function loadOrSeed(key, seed) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return seed;
+    const parsed = JSON.parse(raw);
+    return (Array.isArray(parsed) && parsed.length > 0) ? parsed : seed;
+  } catch(e) { return seed; }
+}
+
+let clientes = loadOrSeed(CL_KEY, CL_SEED);
+let dnsLista = loadOrSeed(DN_KEY, DN_SEED);
+let compras    = loadOrSeed(CP_KEY, []);
+let pagamentos = loadOrSeed(PG_KEY, []);
+let bonusList    = loadOrSeed(BN_KEY, []);
+let saldoInicial = parseFloat(localStorage.getItem(SI_KEY)||'0');
+let chartMes, chartValor;
+
+// ============================================================
+// UTILS
+// ============================================================
+const savePG = () => {
+  localStorage.setItem(PG_KEY, JSON.stringify(pagamentos));
+  fbSave('pagamentos', pagamentos);
+};
+const saveBN = () => {
+  localStorage.setItem(BN_KEY, JSON.stringify(bonusList));
+  fbSave('bonus', bonusList);
+};
+const saveC = () => {
+  localStorage.setItem(CL_KEY, JSON.stringify(clientes));
+  fbSave('clientes', clientes);
+};
+const saveD = () => {
+  localStorage.setItem(DN_KEY, JSON.stringify(dnsLista));
+  fbSave('dns', dnsLista);
+};
+const saveCP = () => {
+  localStorage.setItem(CP_KEY, JSON.stringify(compras));
+  fbSave('compras', compras);
+};
+const brl = n => 'R$ ' + (+n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtDate = iso => { if(!iso) return '—'; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
+const today = () => new Date().toISOString().slice(0,10);
+const diffDays = iso => Math.round((new Date(iso+'T00:00:00') - new Date(today()+'T00:00:00')) / 86400000);
+function getStatus(iso) {
+  const dd = diffDays(iso);
+  if (dd < 0) return {label:'Vencido', cls:'tag-vencido', key:'vencido'};
+  if (dd === 0) return {label:'Hoje', cls:'tag-hoje', key:'hoje'};
+  if (dd <= 7) return {label:`${dd}d`, cls:'tag-semana', key:'semana'};
+  return {label:`${dd}d`, cls:'tag-ok', key:'futuro'};
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${name}')"]`).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function toggleForm(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ============================================================
+// CLIENTES — KPIs + CHARTS
+// ============================================================
+function updateKPIs() {
+  let vencidos=0, ativos=0, vV=0, receitaTotal=0;
+  clientes.forEach(c => {
+    const dd = diffDays(c.venc);
+    receitaTotal += +c.valor||0;
+    if(dd < 0){ vencidos++; vV += +c.valor||0; }
+    else { ativos++; }
+  });
+  const _set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  _set('kpi-total', clientes.length);
+  _set('kpi-ativos', ativos);
+  _set('kpi-vencidos', vencidos);
+  _set('kpi-vencidos-val', brl(vV));
+  _set('kpi-receita-total', brl(receitaTotal));
+  verificarLembrete();
+}
+
+function updateCharts() {
+  if (!document.getElementById('chartMes')) return;
+  const now = new Date(today()+'T00:00:00');
+  const buckets = {};
+  for(let i=0;i<6;i++){
+    const d = new Date(now.getFullYear(), now.getMonth()+i, 1);
+    buckets[d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'})] = 0;
+  }
+  clientes.forEach(c => {
+    const key = new Date(c.venc+'T00:00:00').toLocaleDateString('pt-BR',{month:'short',year:'2-digit'});
+    if(key in buckets) buckets[key]++;
+  });
+  if(chartMes) chartMes.destroy();
+  chartMes = new Chart(document.getElementById('chartMes'), {
+    type:'bar',
+    data:{labels:Object.keys(buckets),datasets:[{label:'Clientes',data:Object.values(buckets),backgroundColor:'#3b82f6',borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#94a3b8'},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'#334155'},beginAtZero:true}}}
+  });
+  const vb = {'R$ 0':0,'R$ 1-30':0,'R$ 31-40':0,'R$ 41+':0};
+  clientes.forEach(c=>{const v=+c.valor||0; if(v===0)vb['R$ 0']++; else if(v<=30)vb['R$ 1-30']++; else if(v<=40)vb['R$ 31-40']++; else vb['R$ 41+']++;});
+  if(chartValor) chartValor.destroy();
+  chartValor = new Chart(document.getElementById('chartValor'), {
+    type:'doughnut',
+    data:{labels:Object.keys(vb),datasets:[{data:Object.values(vb),backgroundColor:['#64748b','#f59e0b','#3b82f6','#10b981'],borderColor:'#1e293b',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#cbd5e1',font:{size:11}}}}}
+  });
+}
+
+// ============================================================
+// CLIENTES — TABELA
+// ============================================================
+function renderClientes() {
+  const q = document.getElementById('search-cliente').value.toLowerCase();
+  const fs = document.getElementById('filter-status').value;
+  const fa = (document.getElementById('filter-app')?.value || '');
+  let list = clientes.slice();
+  if(q) list = list.filter(c=>(c.cliente+' '+c.app+' '+c.obs).toLowerCase().includes(q));
+  if(fs) list = list.filter(c=>getStatus(c.venc).key===fs);
+  if(fa) list = list.filter(c=>c.app===fa);
+  // Ordenação por coluna clicável
+  const col = sortState.col, dir = sortState.dir;
+  list.sort((a,b) => {
+    let r;
+    if (col === 'valor') r = (+a.valor||0) - (+b.valor||0);
+    else r = String(a[col]||'').localeCompare(String(b[col]||''), 'pt-BR');
+    return dir === 'asc' ? r : -r;
+  });
+  ['cliente','venc','valor'].forEach(c2 => {
+    const el = document.getElementById('sort-'+c2);
+    if (el) el.textContent = c2 === col ? (dir === 'asc' ? '▲' : '▼') : '';
+  });
+
+  document.getElementById('tbody-clientes').innerHTML = list.map(c => {
+    const st = getStatus(c.venc);
+    const idx = clientes.indexOf(c);
+    const meses = c.meses||1;
+    const cred = creditosPorMeses(meses);
+    const planoLabel = meses==1?'Mensal':meses==3?'Trimestral':meses==6?'Semestral':'Anual';
+    return `<tr>
+      <td><input type="checkbox" class="chk-cliente" data-idx="${idx}" ${selecionados.has(idx)?'checked':''} onchange="toggleSelecao(${idx}, this.checked)"></td>
+      <td><strong>${c.cliente}</strong></td>
+      <td>${fmtDate(c.venc)}</td>
+      <td>${brl(+c.valor||0)}</td>
+      <td>${c.app||'—'}</td>
+      <td><span style="font-size:11px;color:#94a3b8">${planoLabel} · ${cred} cr.</span></td>
+      <td><span class="tag ${st.cls}">${st.label}</span></td>
+      <td style="max-width:140px;font-size:12px;color:#94a3b8">${c.obs||''}</td>
+      <td>
+        <button class="btn btn-edit btn-sm" onclick="editarCliente(${idx})" style="margin-right:4px">✏️</button>
+        <button class="btn btn-green btn-sm" onclick="abrirRenovar(${idx})" style="margin-right:4px">🔄</button>
+        ${c.fone ? `<button class="btn btn-sm" style="background:#25d366;margin-right:4px" onclick="abrirWhats(${idx})">📲</button>` : ''}
+        <button class="btn btn-sm" style="background:#8b5cf6;margin-right:4px" onclick="abrirHistorico(${idx})" title="Histórico de pagamentos">📜</button>
+        <button class="btn btn-red" onclick="excluirCliente(${idx})">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('count-clientes').textContent = list.length;
+}
+
+let renovarIdx = -1;
+
+function abrirRenovar(idx) {
+  renovarIdx = idx;
+  const c = clientes[idx];
+  document.getElementById('renovar-nome').textContent = c.cliente + ' — vence ' + fmtDate(c.venc);
+  document.getElementById('renovar-data').value = '';
+  document.getElementById('renovar-pgto').value = today();
+  document.getElementById('modal-renovar').classList.add('open');
+}
+
+function confirmarRenovar() {
+  if (renovarIdx < 0) return;
+  const novaData = document.getElementById('renovar-data').value;
+  if (!novaData) return alert('Informe a nova data de vencimento!');
+  const c = clientes[renovarIdx];
+  const dataPgto = document.getElementById('renovar-pgto').value || today();
+  // Registra pagamento
+  pagamentos.push({
+    data: dataPgto,
+    cliente: c.cliente,
+    valor: +c.valor||0,
+    meses: c.meses||1,
+    creditos: creditosPorMeses(c.meses||1)
+  });
+  savePG();
+  // Atualiza vencimento com data informada
+  clientes[renovarIdx].venc = novaData;
+  saveC();
+  fecharModal('modal-renovar');
+  refreshAll();
+}
+function excluirCliente(idx) {
+  if(!confirm('Excluir '+clientes[idx].cliente+'?')) return;
+  clientes.splice(idx,1);
+  saveC(); refreshAll();
+}
+function addCliente() {
+  const nome = document.getElementById('f-nome').value.trim();
+  const venc = document.getElementById('f-venc').value;
+  const valor = document.getElementById('f-valor').value;
+  if(!nome||!venc||valor==='') return alert('Preencha nome, vencimento e valor!');
+  clientes.push({
+    cliente:nome, venc, valor:+valor,
+    app:document.getElementById('f-app').value.trim(),
+    tec:document.getElementById('f-tec').value,
+    meses:+document.getElementById('f-meses').value,
+    fone:document.getElementById('f-fone').value.trim(),
+    obs:document.getElementById('f-obs').value.trim()
+  });
+  ['f-nome','f-venc','f-valor','f-app','f-fone','f-obs'].forEach(id=>document.getElementById(id).value='');
+  saveC(); refreshAll();
+  document.getElementById('form-cliente').style.display='none';
+}
+
+function exportPDF() {
+  const q = document.getElementById('search-cliente').value.toLowerCase();
+  const fs = document.getElementById('filter-status').value;
+  let list = clientes.slice();
+  if(q) list = list.filter(c=>(c.cliente+' '+c.app+' '+c.obs).toLowerCase().includes(q));
+  if(fs) list = list.filter(c=>getStatus(c.venc).key===fs);
+  list.sort((a,b)=>a.venc.localeCompare(b.venc));
+
+  const statusColors = {vencido:'#ef4444', hoje:'#10b981', semana:'#f59e0b', futuro:'#3b82f6'};
+  const rows = list.map(c => {
+    const st = getStatus(c.venc);
+    const cor = statusColors[st.key] || '#3b82f6';
+    return '<tr><td>'+c.cliente+'</td><td>'+fmtDate(c.venc)+'</td><td>'+brl(+c.valor||0)+'</td><td>'+(c.app||'—')+'</td><td style="color:'+cor+';font-weight:600">'+st.label+'</td><td>'+(c.obs||'')+'</td></tr>';
+  }).join('');
+
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Clientes IPTV</title>'
+    + '<style>body{font-family:Arial,sans-serif;font-size:12px;margin:20px}'
+    + 'h1{font-size:18px;margin-bottom:4px}p{color:#666;margin-bottom:16px;font-size:11px}'
+    + 'table{width:100%;border-collapse:collapse}'
+    + 'th{background:#1e293b;color:#fff;padding:8px;text-align:left;font-size:11px}'
+    + 'td{padding:7px 8px;border-bottom:1px solid #e2e8f0;font-size:11px}'
+    + 'tr:nth-child(even) td{background:#f8fafc}</style></head><body>'
+    + '<h1>Lista de Clientes IPTV</h1>'
+    + '<p>Gerado em '+fmtDate(today())+' — '+list.length+' clientes</p>'
+    + '<table><thead><tr><th>Cliente</th><th>Vencimento</th><th>Valor</th><th>Aplicativo</th><th>Status</th><th>Obs</th></tr></thead>'
+    + '<tbody>'+rows+'</tbody></table>'
+    + '<script>window.onload=function(){window.print()}<' + '/script></body></html>';
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+}
+
+// ============================================================
+// DNS
+// ============================================================
+function getDnsVencStatus(venc) {
+  if (!venc) return 'sem';
+  const dd = diffDays(venc);
+  if (dd < 0) return 'vencido';
+  const now = new Date(today()+'T00:00:00');
+  const d = new Date(venc+'T00:00:00');
+  if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) return 'mes';
+  const next = new Date(now.getFullYear(), now.getMonth()+1, 1);
+  const nextEnd = new Date(now.getFullYear(), now.getMonth()+2, 0);
+  if (d >= next && d <= nextEnd) return 'proximo';
+  return 'outro';
+}
+
+function renderDns() {
+  const q = document.getElementById('search-dns').value.toLowerCase();
+  const fv = document.getElementById('filter-dns-venc').value;
+  let list = dnsLista.slice();
+  if(q) list = list.filter(c=>(c.cliente+' '+c.app+' '+c.mac+' '+c.obs).toLowerCase().includes(q));
+  if(fv) list = list.filter(c => getDnsVencStatus(c.venc) === fv);
+  list.sort((a,b) => { if(!a.venc && !b.venc) return 0; if(!a.venc) return 1; if(!b.venc) return -1; return a.venc.localeCompare(b.venc); });
+
+  // Banner de resumo do mês
+  const banner = document.getElementById('dns-venc-banner');
+  const mesList = dnsLista.filter(c => getDnsVencStatus(c.venc) === 'mes');
+  const proximoList = dnsLista.filter(c => getDnsVencStatus(c.venc) === 'proximo');
+  const vencidoList = dnsLista.filter(c => getDnsVencStatus(c.venc) === 'vencido');
+  banner.style.display = 'flex';
+  banner.innerHTML = `
+    <span>📅 <strong>Este mês:</strong> ${mesList.length} cliente${mesList.length!==1?'s':''}</span>
+    <span>🗓 <strong>Mês que vem:</strong> ${proximoList.length} cliente${proximoList.length!==1?'s':''}</span>
+    <span style="color:#fecaca">🔴 <strong>Vencidos:</strong> ${vencidoList.length} cliente${vencidoList.length!==1?'s':''}</span>
+  `;
+
+  document.getElementById('tbody-dns').innerHTML = list.map((c,i) => {
+    const idx = dnsLista.indexOf(c);
+    const obsStyle = c.obs ? 'color:#f59e0b;font-weight:600' : 'color:#64748b';
+    return `<tr>
+      <td><strong>${c.cliente}</strong></td>
+      <td>${c.app||'—'}</td>
+      <td>
+        <span style="font-family:monospace;font-size:12px">${c.mac||'—'}</span>
+        ${c.mac?`<button class="copy-btn" id="cm${i}" onclick="copyText('${c.mac}','cm${i}')">📋</button>`:''}
+      </td>
+      <td>
+        <span style="font-family:monospace">${c.senha||'—'}</span>
+        ${c.senha?`<button class="copy-btn" id="cs${i}" onclick="copyText('${c.senha}','cs${i}')">📋</button>`:''}
+      </td>
+      <td>${c.venc ? (() => { const s = getDnsVencStatus(c.venc); const colors = {vencido:'color:#fca5a5', mes:'color:#6ee7b7;font-weight:600', proximo:'color:#fde68a', outro:'color:#94a3b8'}; return `<span style="${colors[s]||''}">${fmtDate(c.venc)}</span>`; })() : '—'}</td>
+      <td style="${obsStyle};font-size:12px">${c.obs||''}</td>
+      <td><button class="btn btn-edit btn-sm" onclick="editarDns(${idx})" style="margin-right:4px">✏️</button><button class="btn btn-red" onclick="excluirDns(${idx})">🗑</button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('count-dns').textContent = list.length;
+}
+
+function copyText(text, btnId) {
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn = document.getElementById(btnId);
+    if(!btn) return;
+    btn.textContent='✓'; btn.classList.add('ok');
+    setTimeout(()=>{btn.textContent='📋'; btn.classList.remove('ok');},1500);
+  });
+}
+
+function addDns() {
+  const nome = document.getElementById('df-nome').value.trim();
+  if(!nome) return alert('Informe o nome do cliente!');
+  dnsLista.push({
+    cliente:nome,
+    app:document.getElementById('df-app').value.trim(),
+    mac:document.getElementById('df-mac').value.trim(),
+    senha:document.getElementById('df-senha').value.trim(),
+    venc:document.getElementById('df-venc').value,
+    obs:document.getElementById('df-obs').value.trim()
+  });
+  ['df-nome','df-app','df-mac','df-senha','df-venc','df-obs'].forEach(id=>document.getElementById(id).value='');
+  saveD(); renderDns();
+  document.getElementById('form-dns').style.display='none';
+}
+
+function excluirDns(idx) {
+  if(!confirm('Excluir '+dnsLista[idx].cliente+' da lista DNS?')) return;
+  dnsLista.splice(idx,1);
+  saveD(); renderDns();
+}
+
+let editIdx = -1;
+let editType = '';
+
+function editarDns(idx) {
+  editIdx = idx; editType = 'dns';
+  const c = dnsLista[idx];
+  document.getElementById('edit-nome').value  = c.cliente||'';
+  document.getElementById('edit-app').value   = c.app||'';
+  document.getElementById('edit-mac').value   = c.mac||'';
+  document.getElementById('edit-senha').value = c.senha||'';
+  document.getElementById('edit-venc').value  = c.venc||'';
+  document.getElementById('edit-obs').value   = c.obs||'';
+  document.getElementById('modal-dns').classList.add('open');
+}
+
+function editarCliente(idx) {
+  editIdx = idx; editType = 'cliente';
+  const c = clientes[idx];
+  document.getElementById('ec-nome').value  = c.cliente||'';
+  document.getElementById('ec-venc').value  = c.venc||'';
+  document.getElementById('ec-valor').value = c.valor||'';
+  document.getElementById('ec-app').value   = c.app||'';
+  document.getElementById('ec-tec').value   = c.tec||'IPTV';
+  document.getElementById('ec-meses').value = c.meses||1;
+  document.getElementById('ec-fone').value  = c.fone||'';
+  document.getElementById('ec-obs').value   = c.obs||'';
+  document.getElementById('modal-cliente').classList.add('open');
+}
+
+function fecharModal(id) {
+  document.getElementById(id).classList.remove('open');
+  editIdx = -1;
+}
+
+function salvarEdicaoDns() {
+  if(editIdx < 0) return;
+  const nome = document.getElementById('edit-nome').value.trim();
+  if(!nome) return alert('Informe o nome do cliente!');
+  dnsLista[editIdx] = {
+    cliente: nome,
+    app:     document.getElementById('edit-app').value.trim(),
+    mac:     document.getElementById('edit-mac').value.trim(),
+    senha:   document.getElementById('edit-senha').value.trim(),
+    venc:    document.getElementById('edit-venc').value,
+    obs:     document.getElementById('edit-obs').value.trim(),
+  };
+  saveD(); renderDns(); fecharModal('modal-dns');
+}
+
+function salvarEdicaoCliente() {
+  if(editIdx < 0) return;
+  const nome = document.getElementById('ec-nome').value.trim();
+  if(!nome) return alert('Informe o nome do cliente!');
+  clientes[editIdx] = {
+    cliente: nome,
+    venc:    document.getElementById('ec-venc').value,
+    valor:   +document.getElementById('ec-valor').value||0,
+    app:     document.getElementById('ec-app').value.trim(),
+    tec:     document.getElementById('ec-tec').value,
+    meses:   +document.getElementById('ec-meses').value||1,
+    fone:    document.getElementById('ec-fone').value.trim(),
+    obs:     document.getElementById('ec-obs').value.trim(),
+  };
+  saveC(); refreshAll(); fecharModal('modal-cliente');
+}
+
+// Fechar modais clicando fora
+document.getElementById('modal-dns').addEventListener('click', function(e){ if(e.target===this) fecharModal('modal-dns'); });
+document.getElementById('modal-cliente').addEventListener('click', function(e){ if(e.target===this) fecharModal('modal-cliente'); });
+document.getElementById('modal-renovar').addEventListener('click', function(e){ if(e.target===this) fecharModal('modal-renovar'); });
+
+// preview créditos no formulário
+document.getElementById('f-meses').addEventListener('change', function(){
+  const cred = creditosPorMeses(this.value);
+  document.getElementById('f-creditos-preview').textContent = '= ' + cred + ' crédito' + (cred!==1?'s':'');
+});
+
+// ============================================================
+// COMPRAS DE CRÉDITOS
+// ============================================================
+function addCompra() {
+  const creditos = +document.getElementById('cp-creditos').value;
+  const valor    = +document.getElementById('cp-valor').value;
+  const data     = document.getElementById('cp-data').value;
+  if(!creditos||!valor) return alert('Informe créditos e valor!');
+  compras.push({
+    data: data || today(),
+    creditos,
+    valor,
+    fornecedor: document.getElementById('cp-fornecedor').value.trim()
+  });
+  ['cp-creditos','cp-valor','cp-fornecedor'].forEach(id=>document.getElementById(id).value='');
+  saveCP(); renderCreditos();
+  document.getElementById('form-compra').style.display='none';
+}
+
+function excluirCompra(idx) {
+  if(!confirm('Excluir esta compra?')) return;
+  compras.splice(idx,1);
+  saveCP(); renderCreditos();
+}
+
+function renderCreditos() {
+  // KPIs de créditos
+  const totalComprado  = compras.reduce((s,c)=>s+(+c.creditos||0),0);
+  const totalInvestido = compras.reduce((s,c)=>s+(+c.valor||0),0);
+  const totalUsado     = clientes.reduce((s,c)=>s+creditosPorMeses(c.meses||1),0);
+  const saldo          = totalComprado - totalUsado;
+
+  const now = new Date(today()+'T00:00:00');
+  const mesKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const creditosPagamento = p => p.creditos !== undefined ? +p.creditos : creditosPorMeses(p.meses||1);
+
+  // Comprados no mês atual
+  const compradosMes = compras.filter(c => c.data.slice(0,7) === mesKey).reduce((s,c) => s + (+c.creditos||0), 0);
+
+  // Usados no mês atual (renovações)
+  const renovacoesMes = pagamentos.filter(p => p.data.slice(0,7) === mesKey).reduce((s,p) => s + creditosPagamento(p), 0);
+
+  // Bônus no mês atual
+  const bonusMes = bonusList.filter(b => b.data.slice(0,7) === mesKey).reduce((s,b) => s + (+b.creditos||0), 0);
+
+  // Usados = renovações + bônus (bônus foram créditos recebidos e usados)
+  const usadosMes = renovacoesMes + bonusMes;
+
+  // Disponíveis no mês = comprados + bônus - renovações
+  const disponiveis = saldoInicial + compradosMes + bonusMes - renovacoesMes;
+
+  const _sc = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  _sc('cr-comprados', compradosMes.toFixed(1));
+  _sc('cr-comprados-val', brl(compradosMes * CUSTO_CREDITO));
+  _sc('cr-usados-mes', usadosMes.toFixed(1));
+  _sc('cr-usados-mes-val', brl(usadosMes * CUSTO_CREDITO));
+  _sc('cr-disponiveis', disponiveis.toFixed(1));
+  _sc('cr-disponiveis-val', brl(disponiveis * CUSTO_CREDITO));
+
+  // Tabela de compras
+  document.getElementById('tbody-compras').innerHTML = compras.length === 0
+    ? '<tr><td colspan="6" style="color:#64748b;text-align:center;padding:20px">Nenhuma compra registrada ainda</td></tr>'
+    : compras.map((c,i)=>`<tr>
+        <td>${fmtDate(c.data)}</td>
+        <td><strong>${(+c.creditos).toFixed(1)}</strong></td>
+        <td>${brl(+c.valor)}</td>
+        <td style="color:#94a3b8;font-size:12px">${brl(c.valor/c.creditos)}/cr.</td>
+        <td style="color:#94a3b8;font-size:12px">${c.fornecedor||'—'}</td>
+        <td><button class="btn btn-red" onclick="excluirCompra(${i})">🗑</button></td>
+      </tr>`).join('');
+}
+
+// ============================================================
+// RESUMO MENSAL
+// ============================================================
+function renderMensal() {
+  const meses = {};
+  const now = new Date(today()+'T00:00:00');
+  const mesAtualKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  // Baseado no histórico real de pagamentos
+  pagamentos.forEach(p => {
+    const d = new Date(p.data+'T00:00:00');
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = d.toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+    if (!meses[key]) meses[key] = {label, clientes:0, receita:0, creditos:0};
+    meses[key].clientes++;
+    meses[key].receita += +p.valor||0;
+    meses[key].creditos += creditosPorMeses(p.meses||1);
+  });
+
+  if (Object.keys(meses).length === 0) {
+    document.getElementById('tbody-mensal').innerHTML = '<tr><td colspan="5" style="color:#64748b;text-align:center;padding:30px">Nenhum pagamento registrado ainda.<br><span style="font-size:12px">Clique em +30d ao renovar um cliente para registrar automaticamente.</span></td></tr>';
+    return;
+  }
+
+  const keys = Object.keys(meses).sort();
+
+  document.getElementById('tbody-mensal').innerHTML = keys.map(k => {
+    const m = meses[k];
+    const custo = m.creditos * CUSTO_CREDITO;
+    const lucro = m.receita - custo;
+    const isAtual = k === mesAtualKey;
+    const lucroColor = lucro >= 0 ? '#10b981' : '#ef4444';
+    const rowStyle = isAtual ? 'background:#1e3a5f22' : '';
+    const badge = isAtual ? ' <span style="background:#3b82f6;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">atual</span>' : '';
+    return `<tr style="${rowStyle}">
+      <td><strong>${m.label.charAt(0).toUpperCase()+m.label.slice(1)}${badge}</strong></td>
+      <td style="font-weight:700">${m.clientes}</td>
+      <td style="color:#10b981;font-weight:600">${brl(m.receita)}</td>
+      <td style="color:#ef4444">${brl(custo)}</td>
+      <td style="color:${lucroColor};font-weight:700">${brl(lucro)}</td>
+    </tr>`;
+  }).join('');
+
+  const total = keys.reduce((acc, k) => {
+    acc.clientes += meses[k].clientes;
+    acc.receita  += meses[k].receita;
+    acc.creditos += meses[k].creditos;
+    return acc;
+  }, {clientes:0, receita:0, creditos:0});
+  const totalCusto = total.creditos * CUSTO_CREDITO;
+  const totalLucro = total.receita - totalCusto;
+
+  document.getElementById('tbody-mensal').innerHTML += `<tr style="border-top:2px solid #334155;background:#0f172a">
+    <td><strong>TOTAL</strong></td>
+    <td><strong>${total.clientes}</strong></td>
+    <td style="color:#10b981;font-weight:700">${brl(total.receita)}</td>
+    <td style="color:#ef4444;font-weight:700">${brl(totalCusto)}</td>
+    <td style="color:${totalLucro>=0?'#10b981':'#ef4444'};font-weight:700">${brl(totalLucro)}</td>
+  </tr>`;
+}
+
+// ============================================================
+// SALDO INICIAL
+// ============================================================
+function salvarSaldoInicial() {
+  const val = parseFloat(document.getElementById('saldo-inicial').value||'0');
+  saldoInicial = val;
+  localStorage.setItem(SI_KEY, val.toString());
+  fbSave('saldo_inicial', [val]);
+  renderCreditos();
+}
+
+function carregarSaldoInicial() {
+  const el = document.getElementById('saldo-inicial');
+  if (el) el.value = saldoInicial > 0 ? saldoInicial : '';
+}
+
+// ============================================================
+// WHATSAPP
+// ============================================================
+// ============================================================
+// TEMA CLARO / ESCURO
+// ============================================================
+const TEMA_KEY = 'iptv_tema';
+function toggleTema() {
+  const claro = document.body.classList.toggle('tema-claro');
+  localStorage.setItem(TEMA_KEY, claro ? 'claro' : 'escuro');
+  document.getElementById('btn-tema').textContent = claro ? '☀️ Claro' : '🌙 Escuro';
+}
+function carregarTema() {
+  const t = localStorage.getItem(TEMA_KEY);
+  if (t === 'claro') { document.body.classList.add('tema-claro'); document.getElementById('btn-tema').textContent = '☀️ Claro'; }
+}
+
+// ============================================================
+// SENHA
+// ============================================================
+const SENHA_KEY = 'iptv_senha';
+function verificarSenha() {
+  const senha = localStorage.getItem(SENHA_KEY);
+  const input = document.getElementById('senha-input').value;
+  if (!senha || input === senha) {
+    document.getElementById('tela-senha').style.display = 'none';
+    document.getElementById('app-conteudo').style.display = 'block';
+  } else {
+    document.getElementById('senha-erro').style.display = 'block';
+    document.getElementById('senha-input').value = '';
+  }
+}
+function abrirSenha() { document.getElementById('modal-senha').classList.add('open'); }
+function salvarSenha() {
+  const nova = document.getElementById('nova-senha').value;
+  const conf = document.getElementById('conf-senha').value;
+  if (!nova) { alert('Digite uma senha!'); return; }
+  if (nova !== conf) { alert('Senhas não conferem!'); return; }
+  localStorage.setItem(SENHA_KEY, nova);
+  fecharModal('modal-senha');
+  alert('✅ Senha definida com sucesso!');
+}
+function removerSenha() {
+  if (!confirm('Remover a proteção por senha?')) return;
+  localStorage.removeItem(SENHA_KEY);
+  fecharModal('modal-senha');
+  alert('✅ Senha removida.');
+}
+function checarSenhaInicio() {
+  const senha = localStorage.getItem(SENHA_KEY);
+  if (senha) {
+    document.getElementById('tela-senha').style.display = 'flex';
+    document.getElementById('app-conteudo').style.display = 'none';
+  } else {
+    document.getElementById('tela-senha').style.display = 'none';
+    document.getElementById('app-conteudo').style.display = 'block';
+  }
+}
+
+// ============================================================
+// BACKUP
+// ============================================================
+function abrirBackup() {
+  document.getElementById('backup-import-area').style.display = 'none';
+  document.getElementById('backup-texto').value = '';
+  document.getElementById('modal-backup').classList.add('open');
+}
+function exportarBackup() {
+  const dados = { clientes, pagamentos, compras, bonusList, saldoInicial, exportadoEm: new Date().toISOString() };
+  const json = JSON.stringify(dados, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `backup-iptv-${today()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function importarBackup() {
+  try {
+    const dados = JSON.parse(document.getElementById('backup-texto').value);
+    if (!dados.clientes || !Array.isArray(dados.clientes)) { alert('Arquivo inválido!'); return; }
+    if (!confirm(`Isso vai substituir TODOS os dados atuais por ${dados.clientes.length} clientes do backup. Confirma?`)) return;
+    clientes = dados.clientes;
+    pagamentos = dados.pagamentos || [];
+    compras = dados.compras || [];
+    bonusList = dados.bonusList || [];
+    saldoInicial = dados.saldoInicial || 0;
+    saveC(); savePG(); saveCP(); saveBN();
+    fbSave('saldo_inicial', [saldoInicial]);
+    refreshAll();
+    fecharModal('modal-backup');
+    alert(`✅ Backup restaurado! ${clientes.length} clientes importados.`);
+  } catch { alert('Erro ao ler o arquivo. Verifique se é um JSON válido.'); }
+}
+
+// ============================================================
+// LEMBRETE DE VENCIMENTOS AMANHÃ
+// ============================================================
+function verificarLembrete() {
+  const amanha = new Date(today()+'T00:00:00');
+  amanha.setDate(amanha.getDate() + 1);
+  const amanhaStr = amanha.toISOString().slice(0,10);
+  const lista = clientes.filter(c => c.venc === amanhaStr);
+  const btn = document.getElementById('btn-lembrete');
+  const cnt = document.getElementById('lembrete-count');
+  if (lista.length > 0) {
+    if (btn) btn.style.display = '';
+    if (cnt) cnt.textContent = lista.length;
+  } else {
+    if (btn) btn.style.display = 'none';
+  }
+}
+
+function abrirLembrete() {
+  const amanha = new Date(today()+'T00:00:00');
+  amanha.setDate(amanha.getDate() + 1);
+  const amanhaStr = amanha.toISOString().slice(0,10);
+  const lista = clientes.map((c,i) => ({...c,_idx:i})).filter(c => c.venc === amanhaStr);
+  const tbody = document.getElementById('tbody-lembrete');
+  const btnMassa = document.getElementById('btn-lembrete-massa');
+  const comFone = lista.filter(c => c.fone && c.fone.replace(/\D/g,'').length >= 10);
+  if (btnMassa) btnMassa.style.display = comFone.length > 0 ? '' : 'none';
+  tbody.innerHTML = lista.map(c => {
+    const temFone = c.fone && c.fone.replace(/\D/g,'').length >= 10;
+    return `<tr>
+      <td><strong>${c.cliente}</strong></td>
+      <td style="color:#10b981">${brl(+c.valor||0)}</td>
+      <td style="font-size:12px;color:#94a3b8">${c.fone||'—'}</td>
+      <td>${temFone ? `<button class="btn btn-sm" style="background:#25d366" onclick="enviarLembrete(${c._idx})">📲 Enviar</button>` : '<span style="color:#475569;font-size:11px">sem WhatsApp</span>'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('modal-lembrete').classList.add('open');
+}
+
+function enviarLembrete(idx) {
+  const c = clientes[idx];
+  const fone = c.fone.replace(/\D/g,'');
+  const msg = `Olá ${c.cliente}! 😊\n\nPassando para lembrar que sua assinatura IPTV vence *amanhã* (${fmtDate(c.venc)}).\n\nRenove com antecedência para não ficar sem! 🎬`;
+  window.open(`https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+function enviarLembreteEmMassa() {
+  const amanha = new Date(today()+'T00:00:00');
+  amanha.setDate(amanha.getDate() + 1);
+  const amanhaStr = amanha.toISOString().slice(0,10);
+  const lista = clientes.map((c,i) => ({...c,_idx:i})).filter(c => c.venc === amanhaStr && c.fone && c.fone.replace(/\D/g,'').length >= 10);
+  if (lista.length === 0) return;
+  lista.forEach((c, i) => setTimeout(() => enviarLembrete(c._idx), i * 800));
+}
+
+// ============================================================
+// FILTRO POR APLICATIVO
+// ============================================================
+function atualizarAutocompleteApp() {
+  const dl = document.getElementById('apps-sugestoes');
+  const sel = document.getElementById('filter-app');
+  const apps = [...new Set(clientes.map(c => c.app).filter(Boolean))].sort();
+  if (dl) dl.innerHTML = apps.map(a => `<option value="${a}">`).join('');
+  if (sel) {
+    const atual = sel.value;
+    sel.innerHTML = '<option value="">Todos os apps</option>' + apps.map(a => `<option value="${a}" ${a===atual?'selected':''}>${a}</option>`).join('');
+  }
+}
+
+// ============================================================
+// RANKING E LUCRO POR CLIENTE (no modal KPI)
+// ============================================================
+function abrirKpiModal(tipo) {
+  const cfgTipo = {
+    ativos:    { label: '✅ Clientes Ativos',    filtro: c => getStatus(c.venc).key !== 'vencido', cor: '#10b981' },
+    expirados: { label: '🔴 Clientes Expirados', filtro: c => getStatus(c.venc).key === 'vencido', cor: '#ef4444' },
+    todos:     { label: '👥 Todos os Clientes',  filtro: () => true,                               cor: '#3b82f6' },
+    ranking:   { label: '🏆 Ranking por Receita', filtro: () => true,                              cor: '#f59e0b' },
+  };
+  const cfg = cfgTipo[tipo];
+  kpiModalLista = clientes.map((c,i) => ({...c, _idx: i})).filter(cfg.filtro);
+  if (tipo === 'ranking') kpiModalLista.sort((a,b) => (+b.valor||0) - (+a.valor||0));
+  else kpiModalLista.sort((a,b) => a.venc.localeCompare(b.venc));
+
+  const modal = document.getElementById('modal-kpi');
+  const titulo = document.getElementById('kpi-modal-titulo');
+  titulo.textContent = cfg.label;
+  titulo.style.color = cfg.cor;
+  modal.querySelector('.modal').style.borderTopColor = cfg.cor;
+  document.getElementById('kpi-modal-busca').value = '';
+
+  const receita = kpiModalLista.reduce((s,c) => s + (+c.valor||0), 0);
+  const lucroTotal = kpiModalLista.reduce((s,c) => s + ((+c.valor||0) - creditosPorMeses(c.meses||1) * CUSTO_CREDITO), 0);
+  document.getElementById('kpi-modal-resumo').innerHTML =
+    `<strong>${kpiModalLista.length}</strong> cliente(s) · Receita: <strong style="color:#10b981">${brl(receita)}</strong> · Lucro estimado: <strong style="color:#3b82f6">${brl(lucroTotal)}</strong>`;
+
+  renderKpiModal(kpiModalLista);
+  modal.classList.add('open');
+}
+
+function renderKpiModal(lista) {
+  const tbody = document.getElementById('tbody-kpi-modal');
+  if (!tbody) return;
+  if (lista.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="color:#64748b;text-align:center;padding:24px">Nenhum cliente encontrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map((c, i) => {
+    const st = getStatus(c.venc);
+    const lucro = (+c.valor||0) - creditosPorMeses(c.meses||1) * CUSTO_CREDITO;
+    const lucroColor = lucro >= 0 ? '#10b981' : '#ef4444';
+    const temFone = c.fone && c.fone.replace(/\D/g,'').length >= 10;
+    const foneBtn = temFone ? `<button class="btn btn-sm" style="background:#25d366" onclick="abrirWhats(${c._idx})">📲</button>` : '<span style="color:#475569;font-size:11px">—</span>';
+    return `<tr>
+      <td style="color:#64748b;font-size:12px">${i+1}</td>
+      <td><strong>${c.cliente}</strong></td>
+      <td style="font-size:13px">${fmtDate(c.venc)}</td>
+      <td style="color:#10b981;font-weight:600">${brl(+c.valor||0)}</td>
+      <td style="color:${lucroColor};font-weight:600">${brl(lucro)}</td>
+      <td><span class="tag ${st.cls}">${st.label}</span></td>
+      <td>${foneBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+window.abrirKpiModal = abrirKpiModal;
+window.filtrarKpiModal = filtrarKpiModal;
+window.verificarSenha = verificarSenha;
+window.abrirSenha = abrirSenha;
+window.salvarSenha = salvarSenha;
+window.removerSenha = removerSenha;
+window.abrirBackup = abrirBackup;
+window.exportarBackup = exportarBackup;
+window.importarBackup = importarBackup;
+window.abrirLembrete = abrirLembrete;
+window.enviarLembrete = enviarLembrete;
+window.enviarLembreteEmMassa = enviarLembreteEmMassa;
+window.toggleTema = toggleTema;
+
+function renderDetalhamentoCreditos() {
+  // Popular select de meses
+  const sel = document.getElementById('det-mes');
+  if (!sel) return;
+  const mesesSet = new Set();
+  pagamentos.forEach(p => mesesSet.add(p.data.slice(0,7)));
+  const now = new Date();
+  const mesAtual = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  mesesSet.add(mesAtual);
+  const meses = [...mesesSet].sort().reverse();
+  const mesSel = sel.value || mesAtual;
+  sel.innerHTML = meses.map(m => {
+    const [y,mo] = m.split('-');
+    const label = new Date(+y,+mo-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    return `<option value="${m}" ${m===mesSel?'selected':''}>${label.charAt(0).toUpperCase()+label.slice(1)}</option>`;
+  }).join('');
+
+  const mes = sel.value;
+  const pgsMes = pagamentos
+    .filter(p => p.data.slice(0,7) === mes)
+    .sort((a,b) => a.data.localeCompare(b.data));
+
+  const tbody = document.getElementById('tbody-det-creditos');
+  if (!tbody) return;
+
+  if (pgsMes.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:#64748b;text-align:center;padding:24px">Nenhuma renovação neste mês.</td></tr>';
+    return;
+  }
+
+  // Calcula saldo acumulado ao longo do mês
+  const compradosMes = compras.filter(c => c.data.slice(0,7) === mes).reduce((s,c) => s + (+c.creditos||0), 0);
+  const bonusMes = bonusList.filter(b => b.data.slice(0,7) === mes).reduce((s,b) => s + (+b.creditos||0), 0);
+  let saldoCorrido = saldoInicial + compradosMes + bonusMes;
+
+  tbody.innerHTML = pgsMes.map((p, i) => {
+    const cred = p.creditos !== undefined ? +p.creditos : creditosPorMeses(p.meses||1);
+    const meses = p.meses||1;
+    const plano = meses==1?'Mensal':meses==3?'Trimestral':meses==6?'Semestral':'Anual';
+    saldoCorrido -= cred;
+    const saldoCor = saldoCorrido >= 0 ? '#10b981' : '#ef4444';
+    return `<tr>
+      <td style="color:#64748b;font-size:12px">${i+1}</td>
+      <td>${fmtDate(p.data)}</td>
+      <td><strong>${p.cliente}</strong></td>
+      <td style="font-size:12px;color:#94a3b8">${plano}</td>
+      <td style="color:#ef4444;font-weight:600">−${cred.toFixed(1)}</td>
+      <td style="color:${saldoCor};font-weight:600">${saldoCorrido.toFixed(1)}</td>
+    </tr>`;
+  }).join('');
+}
+
+
+// ============================================================
+// GRÁFICO CUSTO x RECEITA
+// ============================================================
+let chartCustoReceita;
+
+function updateCharts() {
+  // Gráfico 1: vencimentos por mês
+  if (!document.getElementById('chartMes')) return;
+  const now = new Date(today()+'T00:00:00');
+  const buckets = {};
+  for(let i=0;i<6;i++){
+    const d = new Date(now.getFullYear(), now.getMonth()+i, 1);
+    buckets[d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'})] = 0;
+  }
+  clientes.forEach(c => {
+    const key = new Date(c.venc+'T00:00:00').toLocaleDateString('pt-BR',{month:'short',year:'2-digit'});
+    if(key in buckets) buckets[key]++;
+  });
+  if(chartMes) chartMes.destroy();
+  chartMes = new Chart(document.getElementById('chartMes'), {
+    type:'bar',
+    data:{labels:Object.keys(buckets),datasets:[{label:'Clientes',data:Object.values(buckets),backgroundColor:'#3b82f6',borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#94a3b8'},grid:{display:false}},y:{ticks:{color:'#94a3b8'},grid:{color:'#334155'},beginAtZero:true}}}
+  });
+
+  // Gráfico 2: Receita vs Custo últimos 6 meses
+  if (!document.getElementById('chartCustoReceita')) return;
+  const meses6 = [];
+  const labels6 = [];
+  for(let i=5;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    meses6.push(key);
+    labels6.push(d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}));
+  }
+  const receitas = meses6.map(m => pagamentos.filter(p => p.data.slice(0,7) === m).reduce((s,p) => s + (+p.valor||0), 0));
+  const custos   = meses6.map(m => {
+    const cred = pagamentos.filter(p => p.data.slice(0,7) === m).reduce((s,p) => s + (p.creditos !== undefined ? +p.creditos : creditosPorMeses(p.meses||1)), 0);
+    return cred * CUSTO_CREDITO;
+  });
+  const lucros = receitas.map((r,i) => r - custos[i]);
+  if(chartCustoReceita) chartCustoReceita.destroy();
+  chartCustoReceita = new Chart(document.getElementById('chartCustoReceita'), {
+    type:'bar',
+    data:{
+      labels: labels6,
+      datasets:[
+        {label:'Receita',data:receitas,backgroundColor:'#10b981',borderRadius:4},
+        {label:'Custo',data:custos,backgroundColor:'#ef4444',borderRadius:4},
+        {label:'Lucro',data:lucros,backgroundColor:'#3b82f6',borderRadius:4},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#cbd5e1',font:{size:11}}}},
+      scales:{x:{ticks:{color:'#94a3b8'},grid:{display:false}},y:{ticks:{color:'#94a3b8',callback: v => 'R$'+v},grid:{color:'#334155'},beginAtZero:true}}}
+  });
+}
+
+// ============================================================
+// AUTOCOMPLETE DE APLICATIVO
+// ============================================================
+function atualizarAutocompleteApp() {
+  const dl = document.getElementById('apps-sugestoes');
+  if (!dl) return;
+  const apps = [...new Set(clientes.map(c => c.app).filter(Boolean))].sort();
+  dl.innerHTML = apps.map(a => `<option value="${a}">`).join('');
+}
+
+// ============================================================
+// RENOVAÇÃO EM MASSA
+// ============================================================
+let selecionados = new Set();
+
+function toggleSelecao(idx, checked) {
+  if (checked) selecionados.add(idx);
+  else selecionados.delete(idx);
+  atualizarBotaoMassa();
+}
+
+function toggleTodos(checked) {
+  document.querySelectorAll('.chk-cliente').forEach(chk => {
+    chk.checked = checked;
+    const idx = parseInt(chk.dataset.idx);
+    if (checked) selecionados.add(idx); else selecionados.delete(idx);
+  });
+  atualizarBotaoMassa();
+}
+
+function atualizarBotaoMassa() {
+  const btn = document.getElementById('btn-renovar-massa');
+  const cnt = document.getElementById('count-selecionados');
+  if (!btn) return;
+  if (selecionados.size > 0) { btn.style.display = ''; if(cnt) cnt.textContent = selecionados.size; }
+  else btn.style.display = 'none';
+}
+
+function abrirRenovarMassa() {
+  if (selecionados.size === 0) return;
+  document.getElementById('massa-pgto').value = today();
+  document.getElementById('massa-venc').value = '';
+  const lista = [...selecionados].map(idx => clientes[idx]).filter(Boolean);
+  document.getElementById('massa-lista').innerHTML = lista.map(c =>
+    `<div style="padding:4px 0;border-bottom:1px solid #1e293b">👤 <strong>${c.cliente}</strong> — vence ${fmtDate(c.venc)}</div>`
+  ).join('');
+  document.getElementById('modal-renovar-massa').classList.add('open');
+}
+
+function confirmarRenovarMassa() {
+  const novaData = document.getElementById('massa-venc').value;
+  if (!novaData) return alert('Informe a nova data de vencimento!');
+  const dataPgto = document.getElementById('massa-pgto').value || today();
+  [...selecionados].forEach(idx => {
+    const c = clientes[idx];
+    if (!c) return;
+    pagamentos.push({ data: dataPgto, cliente: c.cliente, valor: +c.valor||0, meses: c.meses||1, creditos: creditosPorMeses(c.meses||1) });
+    clientes[idx].venc = novaData;
+  });
+  savePG(); saveC();
+  selecionados.clear();
+  const chkTodos = document.getElementById('chk-todos');
+  if (chkTodos) chkTodos.checked = false;
+  fecharModal('modal-renovar-massa');
+  refreshAll();
+  alert(`✅ ${[...selecionados].length || 'Todos os'} clientes renovados com sucesso!`);
+}
+
+// ============================================================
+// RELATÓRIO MENSAL
+// ============================================================
+function gerarRelatorioMensal() {
+  // popular select de meses
+  const sel = document.getElementById('rel-mes');
+  const mesesSet = new Set();
+  pagamentos.forEach(p => mesesSet.add(p.data.slice(0,7)));
+  compras.forEach(c => mesesSet.add(c.data.slice(0,7)));
+  const now = new Date();
+  for(let i=-1;i<=1;i++){
+    const d = new Date(now.getFullYear(), now.getMonth()+i, 1);
+    mesesSet.add(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  const meses = [...mesesSet].sort().reverse();
+  const mesAtual = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  sel.innerHTML = meses.map(m => {
+    const [y,mo] = m.split('-');
+    const label = new Date(+y,+mo-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    return `<option value="${m}" ${m===mesAtual?'selected':''}>${label.charAt(0).toUpperCase()+label.slice(1)}</option>`;
+  }).join('');
+  renderRelatorio();
+  document.getElementById('modal-relatorio').classList.add('open');
+}
+
+function renderRelatorio() {
+  const mes = document.getElementById('rel-mes').value;
+  if (!mes) return;
+  const [y,mo] = mes.split('-');
+  const label = new Date(+y,+mo-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+
+  const pgsMes = pagamentos.filter(p => p.data.slice(0,7) === mes);
+  const compMes = compras.filter(c => c.data.slice(0,7) === mes);
+  const bonMes  = bonusList.filter(b => b.data.slice(0,7) === mes);
+
+  const receita  = pgsMes.reduce((s,p) => s + (+p.valor||0), 0);
+  const credUsados = pgsMes.reduce((s,p) => s + (p.creditos !== undefined ? +p.creditos : creditosPorMeses(p.meses||1)), 0);
+  const custo    = credUsados * CUSTO_CREDITO;
+  const lucro    = receita - custo;
+  const credComp = compMes.reduce((s,c) => s + (+c.creditos||0), 0);
+  const credBonus= bonMes.reduce((s,b) => s + (+b.creditos||0), 0);
+  const renovacoes = pgsMes.length;
+  const ticketMedio = renovacoes > 0 ? receita / renovacoes : 0;
+
+  // Clientes que venciam nesse mês e não estão nos pagamentos
+  const vencMes = clientes.filter(c => c.venc && c.venc.slice(0,7) === mes);
+  const naoRenovaram = vencMes.filter(c => !pgsMes.some(p => p.cliente === c.cliente));
+
+  document.getElementById('rel-conteudo').innerHTML = `
+    <div style="font-size:13px;color:#94a3b8;margin-bottom:14px">Relatório de <strong style="color:#cbd5e1">${label.charAt(0).toUpperCase()+label.slice(1)}</strong></div>
+    <div class="kpis" style="margin-bottom:16px">
+      <div class="kpi green"><div class="kpi-label">💰 Receita</div><div class="kpi-value" style="font-size:22px">${brl(receita)}</div><div class="kpi-sub">${renovacoes} renovações</div></div>
+      <div class="kpi red"><div class="kpi-label">📤 Custo Créditos</div><div class="kpi-value" style="font-size:22px">${brl(custo)}</div><div class="kpi-sub">${credUsados.toFixed(1)} créditos</div></div>
+      <div class="kpi blue"><div class="kpi-label">📈 Lucro</div><div class="kpi-value" style="font-size:22px;color:${lucro>=0?'#10b981':'#ef4444'}">${brl(lucro)}</div><div class="kpi-sub">margem ${receita>0?(lucro/receita*100).toFixed(1):0}%</div></div>
+      <div class="kpi yellow"><div class="kpi-label">🎫 Ticket Médio</div><div class="kpi-value" style="font-size:22px">${brl(ticketMedio)}</div><div class="kpi-sub">por renovação</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;font-size:13px">
+      <div style="background:#0f172a;border-radius:8px;padding:12px">
+        <div style="color:#94a3b8;margin-bottom:8px;font-weight:600">🪙 Créditos</div>
+        <div>Comprados: <strong style="color:#8b5cf6">${credComp.toFixed(1)}</strong></div>
+        <div>Bônus: <strong style="color:#f59e0b">${credBonus.toFixed(1)}</strong></div>
+        <div>Usados: <strong style="color:#ef4444">${credUsados.toFixed(1)}</strong></div>
+        <div>Saldo do mês: <strong style="color:${credComp+credBonus-credUsados>=0?'#10b981':'#ef4444'}">${(credComp+credBonus-credUsados).toFixed(1)}</strong></div>
+      </div>
+      <div style="background:#0f172a;border-radius:8px;padding:12px">
+        <div style="color:#94a3b8;margin-bottom:8px;font-weight:600">👥 Clientes</div>
+        <div>Renovaram: <strong style="color:#10b981">${renovacoes}</strong></div>
+        <div>Não renovaram: <strong style="color:#ef4444">${naoRenovaram.length}</strong></div>
+        <div>Total no mês: <strong>${vencMes.length}</strong></div>
+      </div>
+    </div>
+    ${naoRenovaram.length > 0 ? `
+    <div style="background:#0f172a;border-radius:8px;padding:12px;font-size:13px">
+      <div style="color:#ef4444;font-weight:600;margin-bottom:8px">❌ Não renovaram (${naoRenovaram.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${naoRenovaram.map(c => `<span style="background:#1e293b;padding:3px 10px;border-radius:4px;font-size:12px">${c.cliente}</span>`).join('')}
+      </div>
+    </div>` : '<div style="background:#064e3b;border-radius:8px;padding:12px;font-size:13px;color:#a7f3d0">🎉 Todos os clientes com vencimento neste mês renovaram!</div>'}
+  `;
+}
+
+function exportarRelatorio() {
+  const mes = document.getElementById('rel-mes').value;
+  const conteudo = document.getElementById('rel-conteudo').innerHTML;
+  const [y,mo] = mes.split('-');
+  const label = new Date(+y,+mo-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório ${label}</title>
+  <style>body{font-family:sans-serif;background:#0f172a;color:#e2e8f0;padding:30px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .kpi{background:#1e293b;border-radius:8px;padding:16px;border-left:4px solid #3b82f6}
+  .kpi.green{border-color:#10b981}.kpi.red{border-color:#ef4444}.kpi.blue{border-color:#3b82f6}.kpi.yellow{border-color:#f59e0b}
+  .kpi-label{font-size:11px;color:#94a3b8;margin-bottom:6px}.kpi-value{font-size:22px;font-weight:700}.kpi-sub{font-size:11px;color:#64748b}</style>
+  </head><body><h2>📊 Relatório — ${label.charAt(0).toUpperCase()+label.slice(1)}</h2>${conteudo}
+  <script>window.onload=function(){window.print()}<\/script></body></html>`);
+  w.document.close();
+}
+
+function getMsgWhats(c) {
+  const dd = diffDays(c.venc);
+  const tpl = localStorage.getItem(TPL_KEY);
+  if (tpl && tpl.trim()) {
+    return tpl
+      .replaceAll('{nome}', c.cliente)
+      .replaceAll('{venc}', fmtDate(c.venc))
+      .replaceAll('{dias}', dd < 0 ? `vencido há ${Math.abs(dd)} dia(s)` : `${dd} dia(s)`)
+      .replaceAll('{valor}', brl(+c.valor||0));
+  }
+  // Mensagem padrão (sem template salvo)
+  if (dd < 0) return `Olá ${c.cliente}! Sua assinatura IPTV venceu em ${fmtDate(c.venc)}. Entre em contato para renovar! 😊`;
+  if (dd === 0) return `Olá ${c.cliente}! Sua assinatura IPTV vence hoje (${fmtDate(c.venc)}). Renove para não ficar sem! 😊`;
+  return `Olá ${c.cliente}! Sua assinatura IPTV vence em ${fmtDate(c.venc)} (${dd} dias). Renove com antecedência! 😊`;
+}
+
+function abrirWhats(idx) {
+  const c = clientes[idx];
+  const fone = c.fone.replace(/\D/g,'');
+  const url = `https://wa.me/55${fone}?text=${encodeURIComponent(getMsgWhats(c))}`;
+  window.open(url, '_blank');
+}
+
+// ============================================================
+// ORDENAÇÃO DE COLUNAS
+// ============================================================
+let sortState = { col: 'venc', dir: 'asc' };
+function ordenarPor(col) {
+  if (sortState.col === col) {
+    sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortState = { col, dir: 'asc' };
+  }
+  renderClientes();
+}
+
+// ============================================================
+// BANNER DE ALERTAS
+// ============================================================
+function renderAlertBanner() {
+  const el = document.getElementById('alert-banner');
+  if (!el) return;
+  const vencidos = clientes.filter(c => diffDays(c.venc) < 0);
+  const semana = clientes.filter(c => { const d = diffDays(c.venc); return d >= 0 && d <= 7; });
+  const receitaSemana = semana.reduce((s,c) => s + (+c.valor||0), 0);
+  const valorVencidos = vencidos.reduce((s,c) => s + (+c.valor||0), 0);
+
+  if (vencidos.length === 0 && semana.length === 0) { el.style.display = 'none'; return; }
+
+  const link = (txt, filtro, cor) =>
+    `<span style="cursor:pointer;color:${cor};font-weight:600" onclick="filtrarPorBanner('${filtro}')">${txt}</span>`;
+
+  const partes = [];
+  if (vencidos.length > 0) partes.push(link(`🔴 ${vencidos.length} vencido(s) — ${brl(valorVencidos)} a recuperar`, 'vencido', '#fca5a5'));
+  if (semana.length > 0) partes.push(link(`🟡 ${semana.length} vencem em até 7 dias — ${brl(receitaSemana)} previstos`, 'semana', '#fde68a'));
+  el.innerHTML = partes.join('<span style="color:#334155">|</span>');
+  el.style.display = 'flex';
+}
+
+function filtrarPorBanner(filtro) {
+  const sel = document.getElementById('filter-status');
+  sel.value = filtro;
+  renderClientes();
+  document.getElementById('search-cliente').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+// ============================================================
+// IMPORTAÇÃO EM MASSA
+// ============================================================
+function abrirImportacao() {
+  document.getElementById('imp-texto').value = '';
+  document.getElementById('imp-preview').innerHTML = '';
+  document.getElementById('modal-importar').classList.add('open');
+}
+
+function parseImportacao() {
+  const texto = document.getElementById('imp-texto').value.trim();
+  if (!texto) return { ok: [], erros: ['Nenhum texto colado.'] };
+  const ok = [], erros = [];
+  texto.split('\n').forEach((linha, i) => {
+    const l = linha.trim();
+    if (!l) return;
+    const partes = l.includes('\t') ? l.split('\t') : l.split(';');
+    const nome = (partes[0]||'').trim();
+    const vencBr = (partes[1]||'').trim();
+    if (!nome || !vencBr) { erros.push(`Linha ${i+1}: falta nome ou vencimento`); return; }
+    const m = vencBr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) { erros.push(`Linha ${i+1} (${nome}): data "${vencBr}" inválida — use dd/mm/aaaa`); return; }
+    const venc = `${m[3]}-${m[2]}-${m[1]}`;
+    const valorStr = (partes[2]||'').trim().replace('R$','').replace(',','.');
+    const valor = valorStr === '' ? 40 : (+valorStr || 0);
+    ok.push({
+      cliente: nome, venc, valor,
+      app: '', tec: 'IPTV', meses: 1,
+      fone: (partes[3]||'').trim(),
+      obs: (partes[4]||'').trim()
+    });
+  });
+  return { ok, erros };
+}
+
+function previewImportacao() {
+  const { ok, erros } = parseImportacao();
+  const dup = ok.filter(n => clientes.some(c => c.cliente.toLowerCase() === n.cliente.toLowerCase()));
+  let html = `✅ <strong>${ok.length}</strong> cliente(s) prontos para importar`;
+  if (dup.length > 0) html += `<br>⚠️ <span style="color:#fbbf24">${dup.length} já existem com o mesmo nome (serão importados duplicados): ${dup.map(d=>d.cliente).join(', ')}</span>`;
+  if (erros.length > 0) html += `<br>❌ <span style="color:#fca5a5">${erros.join('<br>')}</span>`;
+  document.getElementById('imp-preview').innerHTML = html;
+}
+
+function confirmarImportacao() {
+  const { ok, erros } = parseImportacao();
+  if (ok.length === 0) return alert('Nada válido para importar!' + (erros.length ? '\n\n' + erros.join('\n') : ''));
+  if (erros.length > 0 && !confirm(`${erros.length} linha(s) com erro serão ignoradas. Importar as ${ok.length} válidas?`)) return;
+  clientes.push(...ok);
+  saveC();
+  refreshAll();
+  fecharModal('modal-importar');
+  alert(`✅ ${ok.length} cliente(s) importados com sucesso!`);
+}
+
+// ============================================================
+// HISTÓRICO DE PAGAMENTOS POR CLIENTE
+// ============================================================
+function abrirHistorico(idx) {
+  const c = clientes[idx];
+  const hist = pagamentos
+    .filter(p => p.cliente === c.cliente)
+    .sort((a,b) => b.data.localeCompare(a.data));
+  const total = hist.reduce((s,p) => s + (+p.valor||0), 0);
+
+  document.getElementById('hist-titulo').textContent = `📜 Histórico — ${c.cliente}`;
+  document.getElementById('hist-resumo').innerHTML =
+    `<strong>${hist.length}</strong> pagamento(s) registrados · Total recebido: <strong style="color:#10b981">${brl(total)}</strong> · Próximo vencimento: <strong>${fmtDate(c.venc)}</strong>`;
+
+  const tbody = document.getElementById('tbody-historico');
+  if (hist.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#64748b;text-align:center;padding:24px">Nenhum pagamento registrado ainda.<br><span style="font-size:12px">Os pagamentos aparecem aqui quando você usa o botão 🔄 Renovar.</span></td></tr>';
+  } else {
+    tbody.innerHTML = hist.map(p => {
+      const meses = p.meses||1;
+      const plano = meses==1?'Mensal':meses==3?'Trimestral':meses==6?'Semestral':'Anual';
+      return `<tr>
+        <td>${fmtDate(p.data)}</td>
+        <td style="color:#10b981;font-weight:600">${brl(+p.valor||0)}</td>
+        <td>${plano}</td>
+        <td>${p.creditos !== undefined ? p.creditos : creditosPorMeses(meses)}</td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('modal-historico').classList.add('open');
+}
+
+// ============================================================
+// COBRANÇA EM MASSA (WHATSAPP)
+// ============================================================
+let cobrancaEnviados = new Set();
+
+function abrirCobranca() {
+  const vencidos = clientes
+    .map((c, idx) => ({c, idx}))
+    .filter(x => diffDays(x.c.venc) < 0)
+    .sort((a,b) => a.c.venc.localeCompare(b.c.venc));
+
+  const tbody = document.getElementById('tbody-cobranca');
+  if (vencidos.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#64748b;text-align:center;padding:24px">🎉 Nenhum cliente vencido!</td></tr>';
+  } else {
+    tbody.innerHTML = vencidos.map(x => {
+      const temFone = x.c.fone && x.c.fone.replace(/\D/g,'').length >= 10;
+      const enviado = cobrancaEnviados.has(x.idx);
+      return `<tr id="cob-row-${x.idx}" style="${enviado ? 'opacity:.5' : ''}">
+        <td><strong>${x.c.cliente}</strong></td>
+        <td style="color:#fca5a5">${fmtDate(x.c.venc)} (${Math.abs(diffDays(x.c.venc))}d atrás)</td>
+        <td>${brl(+x.c.valor||0)}</td>
+        <td>${temFone
+          ? (enviado
+              ? '<span style="color:#10b981;font-size:12px">✅ Enviado</span>'
+              : `<button class="btn btn-sm" style="background:#25d366" onclick="enviarCobranca(${x.idx})">📲 Enviar</button>`)
+          : '<span style="color:#64748b;font-size:12px">sem WhatsApp</span>'}</td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('modal-cobranca').classList.add('open');
+}
+
+function enviarCobranca(idx) {
+  abrirWhats(idx);
+  cobrancaEnviados.add(idx);
+  abrirCobranca(); // re-renderiza marcando como enviado
+}
+
+// ============================================================
+// TEMPLATE DE MENSAGEM WHATSAPP
+// ============================================================
+function abrirTemplateWhats() {
+  document.getElementById('tpl-texto').value = localStorage.getItem(TPL_KEY) || '';
+  document.getElementById('tpl-preview').style.display = 'none';
+  document.getElementById('modal-template').classList.add('open');
+}
+
+function previewTemplate() {
+  const exemplo = clientes[0] || {cliente:'Fulano', venc: today(), valor: 40};
+  const salvo = localStorage.getItem(TPL_KEY);
+  const atual = document.getElementById('tpl-texto').value;
+  localStorage.setItem(TPL_KEY, atual); // aplica temporariamente
+  const msg = getMsgWhats(exemplo);
+  if (salvo === null) localStorage.removeItem(TPL_KEY); else localStorage.setItem(TPL_KEY, salvo); // restaura
+  const prev = document.getElementById('tpl-preview');
+  prev.textContent = '💬 ' + msg;
+  prev.style.display = 'block';
+}
+
+function salvarTemplate() {
+  const txt = document.getElementById('tpl-texto').value;
+  if (txt.trim()) localStorage.setItem(TPL_KEY, txt);
+  else localStorage.removeItem(TPL_KEY);
+  fecharModal('modal-template');
+  alert(txt.trim() ? '✅ Mensagem personalizada salva!' : '✅ Voltou para a mensagem padrão.');
+}
+
+// ============================================================
+// TRILHA DE BÔNUS
+// ============================================================
+function calcularERegistrarBonus() {
+  const ontem = new Date(today()+'T00:00:00');
+  ontem.setDate(ontem.getDate()-1);
+  const ontemStr = ontem.toISOString().slice(0,10);
+
+  // Verifica se já registrou bônus de ontem
+  const jaRegistrado = bonusList.some(b => b.data === ontemStr);
+  if (jaRegistrado) return;
+
+  // Conta créditos gastos ontem
+  const renovacoesOntem = pagamentos.filter(p => p.data === ontemStr);
+  if (renovacoesOntem.length === 0) return;
+
+  const creditosGastos = renovacoesOntem.reduce((s,p) => s + creditosPorMeses(p.meses||1), 0);
+  const pontos = Math.min(creditosGastos * 10, 1000);
+  const creditosBonus = Math.floor(pontos / 100);
+
+  if (creditosBonus > 0) {
+    bonusList.push({
+      data: ontemStr,
+      renovacoes: renovacoesOntem.length,
+      pontos: pontos,
+      creditos: creditosBonus
+    });
+    saveBN();
+  }
+}
+
+function renderBonus() {
+  calcularERegistrarBonus();
+
+  // Info de hoje
+  const renovacoesHoje = pagamentos.filter(p => p.data === today());
+  const creditosHoje = renovacoesHoje.reduce((s,p) => s + creditosPorMeses(p.meses||1), 0);
+  const pontosHoje = Math.min(creditosHoje * 10, 1000);
+  const bonusAmanha = Math.floor(pontosHoje / 100);
+
+  const info = document.getElementById('trilha-info');
+  if (info) {
+    info.innerHTML = `
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <span>📊 <strong>Hoje:</strong> ${renovacoesHoje.length} renovações · ${pontosHoje} pontos acumulados</span>
+        <span style="color:#f59e0b">🏆 <strong>Bônus amanhã:</strong> ${bonusAmanha} crédito${bonusAmanha!==1?'s':''}</span>
+      </div>`;
+  }
+
+  const tbody = document.getElementById('tbody-bonus');
+  if (!tbody) return;
+
+  if (bonusList.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#64748b;text-align:center;padding:20px">Nenhum bônus registrado ainda.<br><span style="font-size:12px">Faça 10+ renovações em um dia para ganhar créditos bônus.</span></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = bonusList.slice().reverse().map((b,i) => {
+    const realIdx = bonusList.length - 1 - i;
+    return `<tr>
+      <td>${fmtDate(b.data)}</td>
+      <td>${b.renovacoes}</td>
+      <td style="color:#f59e0b;font-weight:600">${b.pontos}</td>
+      <td style="color:#10b981;font-weight:700">+${b.creditos} crédito${b.creditos!==1?'s':''}</td>
+      <td><button class="btn btn-red" onclick="excluirBonus(${realIdx})">🗑</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// BONUS MANUAL
+// ============================================================
+function addBonus() {
+  const data     = document.getElementById('bn-data').value || today();
+  const renovs   = +document.getElementById('bn-renovacoes').value;
+  const pontos   = Math.min(+document.getElementById('bn-pontos').value, 1000);
+  if (!renovs || !pontos) return alert('Preencha renovações e pontos!');
+  const creditos = Math.floor(pontos / 100);
+  bonusList.push({ data, renovacoes: renovs, pontos, creditos });
+  saveBN();
+  ['bn-data','bn-renovacoes','bn-pontos'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('form-bonus').style.display = 'none';
+  refreshAll();
+}
+
+function excluirBonus(idx) {
+  if (!confirm('Excluir este bônus?')) return;
+  bonusList.splice(idx, 1);
+  saveBN();
+  refreshAll();
+}
+
+// ============================================================
+// PROJEÇÃO
+// ============================================================
+function renderProjecao() {
+  const now = new Date(today()+'T00:00:00');
+  const mesAtualNum = now.getFullYear() * 12 + now.getMonth();
+
+  // Gera 12 meses a partir do mês atual
+  const meses = {};
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const label = d.toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+    meses[key] = {label, clientes:0, receita:0, creditos:0};
+  }
+
+  // Cada cliente entra a partir do seu mês de vencimento e repete mensalmente
+  // Sempre considera 1 crédito (mensal) e o valor cadastrado
+  clientes.forEach(c => {
+    const dVenc = new Date(c.venc+'T00:00:00');
+    const vencNum = dVenc.getFullYear() * 12 + dVenc.getMonth();
+    const valorMensal = +c.valor || 0; // usa o valor cadastrado (pode ser 0, 35, 40, etc)
+
+    Object.keys(meses).forEach(key => {
+      const [y, m] = key.split('-').map(Number);
+      const keyNum = y * 12 + (m - 1);
+      if (keyNum >= vencNum) {
+        meses[key].clientes++;
+        meses[key].receita += valorMensal;
+        meses[key].creditos += 1; // sempre 1 crédito mensal
+      }
+    });
+  });
+
+  const mesAtualKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const keys = Object.keys(meses).sort();
+  const tbody = document.getElementById('tbody-projecao');
+  if (!tbody) return;
+
+  tbody.innerHTML = keys.map(k => {
+    const m = meses[k];
+    const custo = m.creditos * CUSTO_CREDITO;
+    const lucro = m.receita - custo;
+    const isAtual = k === mesAtualKey;
+    const lucroColor = lucro >= 0 ? '#10b981' : '#ef4444';
+    const rowStyle = isAtual ? 'background:#1e3a5f22' : '';
+    const badge = isAtual ? ' <span style="background:#3b82f6;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">atual</span>' : '';
+    const label = m.label.charAt(0).toUpperCase() + m.label.slice(1);
+    return `<tr style="${rowStyle}">
+      <td><strong>${label}${badge}</strong></td>
+      <td style="font-weight:700">${m.clientes}</td>
+      <td style="color:#10b981;font-weight:600">${brl(m.receita)}</td>
+      <td style="color:#ef4444">${brl(custo)}</td>
+      <td style="color:${lucroColor};font-weight:700">${brl(lucro)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// CONTROLE DO MÊS
+// ============================================================
+function popularMesesControle(mesSelecionado) {
+  const sel = document.getElementById('controle-mes');
+  if (!sel) return;
+  const mesesSet = new Set();
+
+  // Meses com pagamentos
+  pagamentos.forEach(p => mesesSet.add(p.data.slice(0,7)));
+
+  // Sempre inclui mês atual e próximo
+  const now = new Date();
+  for (let i = -1; i <= 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    mesesSet.add(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+  }
+
+  const meses = Array.from(mesesSet).sort().reverse();
+  const atual = mesSelecionado || (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'));
+
+  sel.innerHTML = meses.map(m => {
+    const [y, mo] = m.split('-');
+    const label = new Date(+y, +mo-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+    const l = label.charAt(0).toUpperCase() + label.slice(1);
+    return `<option value="${m}" ${m === atual ? 'selected' : ''}>${l}</option>`;
+  }).join('');
+}
+
+function renderControle() {
+  const sel = document.getElementById('controle-mes');
+  if (!sel) return;
+  const valorAtual = sel.value;
+  popularMesesControle(valorAtual);
+  const mesSel = sel.value;
+  if (!mesSel) return;
+
+  // Filtra pagamentos do mês selecionado
+  const lista = pagamentos.filter(p => p.data.slice(0,7) === mesSel);
+  lista.sort((a,b) => a.data.localeCompare(b.data));
+
+  const totalReceita = lista.reduce((s,p) => s + (+p.valor||0), 0);
+  const totalCreditos = lista.reduce((s,p) => s + (p.creditos !== undefined ? +p.creditos : creditosPorMeses(p.meses||1)), 0);
+  const totalCusto = totalCreditos * CUSTO_CREDITO;
+  const totalLucro = totalReceita - totalCusto;
+
+  const _set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  _set('ctrl-clientes', lista.length);
+  _set('ctrl-receita', brl(totalReceita));
+  _set('ctrl-creditos', totalCreditos.toFixed(1));
+  _set('ctrl-custo', brl(totalCusto));
+  _set('ctrl-lucro', brl(totalLucro));
+  _set('ctrl-lucro-sub', totalLucro >= 0 ? 'lucro' : 'prejuízo');
+
+  const tbody = document.getElementById('tbody-controle');
+  if (!tbody) return;
+
+  if (lista.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:#64748b;text-align:center;padding:30px">Nenhum pagamento registrado neste mês.<br><span style="font-size:12px">Use o botão 🔄 para renovar clientes e registrar pagamentos.</span></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = lista.map((p, i) => {
+    const realIdx = pagamentos.indexOf(p);
+    const cred = p.creditos !== undefined ? +p.creditos : creditosPorMeses(p.meses||1);
+    return `<tr>
+      <td>${fmtDate(p.data)}</td>
+      <td><strong>${p.cliente}</strong></td>
+      <td style="color:#10b981;font-weight:600">${brl(+p.valor||0)}</td>
+      <td style="color:#f59e0b">${cred.toFixed(1)}</td>
+      <td><button class="btn btn-red" onclick="excluirPagamento(${realIdx})">🗑</button></td>
+    </tr>`;
+  }).join('');
+
+  // Linha de total
+  tbody.innerHTML += `<tr style="border-top:2px solid #334155;background:#0f172a">
+    <td colspan="2"><strong>TOTAL</strong></td>
+    <td style="color:#10b981;font-weight:700">${brl(totalReceita)}</td>
+    <td style="color:#f59e0b;font-weight:700">${totalCreditos.toFixed(1)}</td>
+    <td></td>
+  </tr>`;
+}
+
+function excluirPagamento(idx) {
+  if (!confirm('Excluir este pagamento?')) return;
+  pagamentos.splice(idx, 1);
+  savePG();
+  refreshAll();
+  renderControle();
+}
+
+// ============================================================
+// PREVISÃO DIÁRIA
+// ============================================================
+function popularMesesPrevisao(mesSelecionado) {
+  const sel = document.getElementById('previsao-mes');
+  if (!sel) return;
+  const mesesSet = new Set();
+
+  clientes.forEach(c => { if(c.venc) mesesSet.add(c.venc.slice(0,7)); });
+
+  const now = new Date();
+  for (let i = -1; i <= 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    mesesSet.add(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+  }
+
+  const meses = Array.from(mesesSet).sort();
+  const atual = mesSelecionado || (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'));
+
+  sel.innerHTML = meses.map(m => {
+    const [y, mo] = m.split('-');
+    const label = new Date(+y, +mo-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+    const l = label.charAt(0).toUpperCase() + label.slice(1);
+    return `<option value="${m}" ${m === atual ? 'selected' : ''}>${l}</option>`;
+  }).join('');
+}
+
+function renderPrevisao() {
+  const sel = document.getElementById('previsao-mes');
+  if (!sel) return;
+  const valorAtual = sel.value;
+  popularMesesPrevisao(valorAtual);
+  const mesSel = sel.value;
+  if (!mesSel) return;
+
+  // Filtra clientes que vencem no mês selecionado
+  const lista = clientes.filter(c => c.venc && c.venc.slice(0,7) === mesSel);
+
+  // Agrupa por dia
+  const dias = {};
+  lista.forEach(c => {
+    const dia = c.venc;
+    if (!dias[dia]) dias[dia] = {clientes:[], total:0};
+    dias[dia].clientes.push(c);
+    dias[dia].total += +c.valor||0;
+  });
+
+  const totalClientes = lista.length;
+  const totalValor = lista.reduce((s,c) => s + (+c.valor||0), 0);
+  const totalDias = Object.keys(dias).length;
+
+  const _set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  _set('prev-clientes', totalClientes);
+  _set('prev-total', brl(totalValor));
+  _set('prev-dias', totalDias);
+
+  const tbody = document.getElementById('tbody-previsao');
+  if (!tbody) return;
+
+  if (Object.keys(dias).length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#64748b;text-align:center;padding:30px">Nenhum cliente vence neste mês.</td></tr>';
+    return;
+  }
+
+  const hoje = today();
+  tbody.innerHTML = Object.keys(dias).sort().map(dia => {
+    const d = dias[dia];
+    const isHoje = dia === hoje;
+    const isPast = dia < hoje;
+    const rowStyle = isHoje ? 'background:#1e3a5f33' : isPast ? 'opacity:0.6' : '';
+    const badge = isHoje ? ' <span style="background:#10b981;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">hoje</span>' : '';
+    const nomes = d.clientes.map(c => `<span style="font-size:11px;background:#1e293b;padding:2px 7px;border-radius:4px;margin:2px;display:inline-block">${c.cliente}</span>`).join('');
+    return `<tr style="${rowStyle}">
+      <td><strong>${fmtDate(dia)}${badge}</strong></td>
+      <td style="font-weight:700">${d.clientes.length}</td>
+      <td style="color:#10b981;font-weight:600">${brl(d.total)}</td>
+      <td style="line-height:1.8">${nomes}</td>
+    </tr>`;
+  }).join('');
+
+  // Total
+  tbody.innerHTML += `<tr style="border-top:2px solid #334155;background:#0f172a">
+    <td><strong>TOTAL</strong></td>
+    <td><strong>${totalClientes}</strong></td>
+    <td style="color:#10b981;font-weight:700">${brl(totalValor)}</td>
+    <td></td>
+  </tr>`;
+}
+
+// ============================================================
+// HISTÓRICO MENSAL DE CRÉDITOS
+// ============================================================
+function renderHistoricoCreditos() {
+  const tbody = document.getElementById('tbody-historico-creditos');
+  if (!tbody) return;
+
+  const mesesSet = new Set();
+  compras.forEach(c => mesesSet.add(c.data.slice(0,7)));
+  pagamentos.forEach(p => mesesSet.add(p.data.slice(0,7)));
+  bonusList.forEach(b => mesesSet.add(b.data.slice(0,7)));
+
+  if (mesesSet.size === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:#64748b;text-align:center;padding:20px">Nenhum histórico ainda.</td></tr>';
+    return;
+  }
+
+  const meses = Array.from(mesesSet).sort().reverse();
+  const now = new Date();
+  const mesAtual = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+
+  tbody.innerHTML = meses.map(m => {
+    const comprados = compras.filter(c => c.data.slice(0,7) === m).reduce((s,c) => s + (+c.creditos||0), 0);
+    const usados = pagamentos.filter(p => p.data.slice(0,7) === m).reduce((s,p) => s + (p.creditos !== undefined ? +p.creditos : creditosPorMeses(p.meses||1)), 0);
+    const bonus = bonusList.filter(b => b.data.slice(0,7) === m).reduce((s,b) => s + (+b.creditos||0), 0);
+    const saldo = comprados + bonus - usados;
+    const saldoColor = saldo >= 0 ? '#10b981' : '#ef4444';
+    const isAtual = m === mesAtual;
+    const [y, mo] = m.split('-');
+    const label = new Date(+y, +mo-1, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+    const l = label.charAt(0).toUpperCase() + label.slice(1);
+    const badge = isAtual ? ' <span style="background:#3b82f6;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">atual</span>' : '';
+    const rowStyle = isAtual ? 'background:#1e3a5f22' : '';
+    return `<tr style="${rowStyle}">
+      <td><strong>${l}${badge}</strong></td>
+      <td style="color:#8b5cf6;font-weight:600">${comprados.toFixed(1)}</td>
+      <td style="color:#ef4444">${usados.toFixed(1)}</td>
+      <td style="color:#f59e0b">${bonus.toFixed(1)}</td>
+      <td style="color:${saldoColor};font-weight:700">${saldo >= 0 ? '+' : ''}${saldo.toFixed(1)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// INIT — Firebase primeiro, localStorage só como fallback
+// ============================================================
+function refreshAll() { updateKPIs(); updateCharts(); renderClientes(); renderAlertBanner(); atualizarAutocompleteApp(); renderCreditos(); renderDetalhamentoCreditos(); renderHistoricoCreditos(); renderBonus(); renderProjecao(); renderControle(); renderPrevisao(); }
+
+(async () => {
+checarSenhaInicio();
+carregarTema();
+  document.getElementById('sync-status').textContent = '🔄 Sincronizando...';
+  try {
+    const cl = await fbLoad('clientes');
+    const dn = await fbLoad('dns');
+    const cp = await fbLoad('compras');
+    const pg = await fbLoad('pagamentos');
+
+    // Sempre usa Firebase se tiver dados
+    if (cl && cl.length > 0) { clientes = cl; localStorage.setItem(CL_KEY, JSON.stringify(cl)); }
+    if (dn && dn.length > 0) { dnsLista = dn; localStorage.setItem(DN_KEY, JSON.stringify(dn)); }
+    if (cp !== null) { compras = cp; localStorage.setItem(CP_KEY, JSON.stringify(cp)); }
+    if (pg !== null) { pagamentos = pg; localStorage.setItem(PG_KEY, JSON.stringify(pg)); }
+    const bn = await fbLoad('bonus');
+    if (bn !== null) { bonusList = bn; localStorage.setItem(BN_KEY, JSON.stringify(bn)); }
+    const si = await fbLoad('saldo_inicial');
+    if (si !== null && si.length > 0) { saldoInicial = parseFloat(si[0]||0); localStorage.setItem(SI_KEY, saldoInicial.toString()); }
+
+    document.getElementById('sync-status').textContent = '✅ Sincronizado';
+  } catch(e) {
+    console.error("Erro Firebase:", e);
+    document.getElementById('sync-status').textContent = '⚠️ Offline';
+  } finally {
+    refreshAll();
+    renderDns();
+  }
+})();
+</script>
 </body>
 </html>
